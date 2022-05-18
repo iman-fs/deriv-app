@@ -120,10 +120,6 @@
         "react-router": "^5.2.0",
         "react-router-dom": "^5.2.0",
         "react-transition-group": "^4.3.0",
-<<<<<<< HEAD
-        "typescript": "^4.5.4",
-=======
->>>>>>> bf1d1bab6dcd4d5879ee331da19c9381aff49776
         "workbox-webpack-plugin": "^6.0.2"
     }
 }
