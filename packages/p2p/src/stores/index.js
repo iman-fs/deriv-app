@@ -41,5 +41,3 @@ export const useStores = () => {
     }
     return React.useContext(stores_context);
 };
-
-// start from here
