@@ -1,6 +1,0 @@
-User-agent: *
-Disallow: */cashier/*
-Disallow: */mt5/*
-Disallow: */p2p/*
-Disallow: */reports/*
-Disallow: */account/*
