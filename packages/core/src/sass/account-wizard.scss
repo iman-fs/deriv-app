@@ -1,0 +1,447 @@
+.dc-modal__container {
+    &_real-account-signup-modal {
+        display: flex;
+        flex-direction: column;
+        transition: all 0.3s ease-in-out;
+        @include tablet {
+            max-height: calc(100vh - 102px) !important; // Header and footer
+        }
+        background-color: var(--general-main-1);
+
+        &--success {
+            border-radius: $BORDER_RADIUS;
+            overflow: hidden;
+            max-width: 478px;
+            min-width: initial !important;
+            max-height: initial !important;
+        }
+        .dc-modal-header__title {
+            text-transform: none;
+            border-top-left-radius: 1rem;
+        }
+        &--error {
+            .account-wizard--error {
+                display: flex;
+                align-items: center;
+                justify-content: start;
+                flex-direction: column;
+                height: 100%;
+                width: 100%;
+                padding-top: 10rem;
+            }
+            & > svg {
+                width: 128px;
+                height: 128px;
+                align-self: center;
+                margin: 2rem 0 0;
+            }
+            h1 {
+                @include typeface(--title-center-bold-black);
+                text-transform: none;
+                color: var(--text-general);
+                margin: 1.6rem 0 0.8rem;
+            }
+            p {
+                @include typeface(--paragraph-center-normal-prominent);
+                text-transform: none;
+                width: 80%;
+                margin-bottom: 2.4rem;
+            }
+            a.dc-btn {
+                @include typeface(--paragraph-center-bold-black);
+                text-transform: none;
+                text-decoration: none;
+                color: var(--text-colored-background);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                align-self: center;
+            }
+            a.email-inline {
+                color: var(--brand-red-coral);
+                font-weight: bold;
+                text-decoration: none;
+            }
+            span.chat-inline {
+                color: var(--brand-red-coral);
+                font-weight: bold;
+                text-decoration: none;
+                cursor: pointer;
+            }
+        }
+        &--loading {
+            width: 300px;
+            max-height: 300px;
+
+            .dc-modal-header__title {
+                height: 0;
+            }
+        }
+        & .dc-themed-scrollbars {
+            height: 100%;
+        }
+    }
+    &--risk-message {
+        height: auto !important;
+        width: 440px !important;
+        .dc-themed-scrollbars {
+            max-height: none !important;
+        }
+        .dc-modal-footer {
+            border-top: none;
+            padding: 2.4rem;
+        }
+        @include mobile {
+            width: 300px !important;
+        }
+    }
+}
+
+.dc-mobile-dialog__account-signup-mobile-dialog {
+    .account-wizard--error {
+        p {
+            text-align: center;
+        }
+        span.chat-inline {
+            color: var(--brand-red-coral);
+            font-weight: bold;
+            text-decoration: none;
+            cursor: pointer;
+            display: block;
+            text-align: center;
+        }
+    }
+}
+
+.dc-modal-header--real-account-signup-modal {
+    border-bottom: 1px solid var(--general-section-1);
+}
+
+.account-wizard {
+    display: grid;
+    grid-template-rows: 13rem minmax(10rem, 1fr);
+    height: calc(100% - 57px);
+    position: relative;
+    width: 100%;
+    @include desktop {
+        &--deriv-crypto {
+            grid-template-rows: 0 !important;
+        }
+        .currency-list__items {
+            &__is-crypto {
+                margin-bottom: 9rem;
+            }
+        }
+        .dc-input__label {
+            background-color: var(--fill-normal) !important;
+        }
+        .dc-modal-footer {
+            background-color: var(--general-main-1);
+            z-index: 1;
+        }
+    }
+    @include mobile {
+        grid-template-rows: 5rem minmax(10rem, 1fr);
+        overflow: hidden;
+
+        &--set-currency {
+            grid-template-rows: 1fr 70px;
+        }
+    }
+
+    &.add-or-manage {
+        grid-template-rows: 1fr 1fr;
+
+        & .dc-form-submit-button {
+            padding: 2rem;
+        }
+        @include desktop {
+            & form {
+                grid-template-rows: auto;
+            }
+        }
+        @include mobile {
+            grid-template-rows: 1fr 1fr;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+    }
+    & > h2 {
+        text-transform: none;
+        margin-top: 2.4rem;
+        @include typeface(--title-center-bold-black);
+        color: var(--text-less-prominent);
+        @include mobile {
+            margin-top: 0.8rem;
+            font-size: 1.2rem;
+        }
+    }
+    & > h3 {
+        @include typeface(--small-center-normal-black);
+        text-transform: none;
+        color: var(--text-general);
+        margin-bottom: 1.6rem;
+    }
+    form {
+        width: 100%;
+        height: 100%;
+
+        @include tablet-up {
+            display: grid;
+            grid-template-rows: minmax(20rem, 1fr);
+        }
+
+        .currency-selector {
+            &__radio-group {
+                display: flex;
+                flex-direction: column;
+                flex-grow: 1;
+                justify-content: center;
+                align-items: center;
+
+                &--is-header {
+                    font-size: 1.6rem;
+                    margin: 2rem 0 0;
+                    font-weight: bold;
+                    color: var(--text-prominent);
+                }
+            }
+            &__description {
+                margin-top: 2.4rem;
+                @include typeface(--paragraph-center-normal-prominent);
+                @include mobile {
+                    text-align: center;
+                }
+            }
+            &__container {
+                width: 100%;
+                @include mobile {
+                    overflow-x: hidden;
+                    overflow-y: auto;
+
+                    &--no-top-margin {
+                        margin-top: 0;
+                    }
+                }
+            }
+            &__button {
+                margin-top: 1.6rem;
+            }
+            @include mobile {
+                &--deriv-account {
+                    border-top: 2px solid var(--general-section-1);
+                    padding-top: 10px;
+
+                    .dc-btn:last-child {
+                        width: 90%;
+                        margin: 0 auto;
+                    }
+                }
+            }
+        }
+    }
+    &__body {
+        display: flex;
+
+        & .details-form {
+            @include tablet {
+                grid-template-rows: minmax(10rem, 1fr);
+            }
+        }
+    }
+    &__set-currency {
+        p {
+            margin: 2.4rem 0;
+            @include typeface(--paragraph-center-normal-black);
+            text-transform: initial;
+            color: var(--text-prominent);
+
+            @include mobile {
+                font-size: 1.2rem;
+                margin: 2.4rem auto 0 2.4rem;
+                text-align: left;
+            }
+        }
+        h2 {
+            @include mobile {
+                font-size: 1.2rem;
+                text-align: left;
+                margin-left: 2.4rem;
+            }
+        }
+    }
+    .checkbox {
+        align-items: center;
+        margin: 1rem 0 0;
+
+        &__box--active {
+            background-color: var(--brand-red-coral);
+        }
+        &__box--active:after {
+            font-size: 1.3rem;
+            line-height: 20px;
+        }
+        &__label {
+            @include typeface(--paragraph-left-normal-black);
+            text-transform: none;
+        }
+    }
+    &--disabled {
+        position: relative;
+
+        .currency-list__items {
+            margin-top: 2.4rem;
+        }
+        .currency-list__item {
+            pointer-events: none;
+
+            svg {
+                opacity: 0.08;
+            }
+            .label {
+                color: var(--text-disabled);
+            }
+        }
+        &-message {
+            display: flex;
+            justify-content: center;
+
+            &-description {
+                margin-top: 2.4rem;
+                width: 78%;
+                background-color: var(--status-warning-transparent);
+                padding: 0.8rem 0;
+                border-radius: $BORDER_RADIUS;
+            }
+        }
+    }
+    @include mobile {
+        &--error {
+            margin-top: $MOBILE_HEADER_HEIGHT;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+
+            h1 {
+                font-size: 2.4rem;
+                text-align: center;
+                font-weight: bold;
+                line-height: 1.5;
+                color: var(--text-prominent);
+            }
+            p {
+                font-size: 1.4rem;
+                margin: 1.6rem;
+                line-height: 1.4;
+                color: var(--text-general);
+            }
+            .dc-btn {
+                height: 4rem;
+            }
+            .dc-ion {
+                width: 100%;
+                max-width: 96px;
+                margin-top: 2rem;
+                height: auto;
+            }
+        }
+        &__header {
+            &-steps {
+                padding: 1.6rem 0 0;
+                width: 100%;
+
+                &-title {
+                    padding: 0 1.6rem 0.8rem;
+                }
+                &-subtitle {
+                    padding: 1.6rem 1.6rem 0;
+                }
+            }
+        }
+    }
+}
+
+.add-crypto-currency,
+.change-currency {
+    height: 100%;
+
+    &__title {
+        margin-top: 3rem;
+    }
+    &__sub-title {
+        margin-bottom: 1rem;
+    }
+    &__button {
+        margin-top: 1.6rem;
+        width: 100%;
+    }
+
+    @include mobile {
+        .dc-form-submit-button {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            padding: 1.5rem;
+            background-color: var(--general-main-1);
+        }
+        & .dc-btn {
+            width: 100%;
+        }
+    }
+}
+
+.cashier-deposit {
+    @media screen and (max-height: 568px) {
+        .currency-selector__radio-group--with-margin {
+            margin-bottom: 6rem;
+        }
+    }
+}
+/* TODO: [refactor-components] Refactor form subheader to components */
+.account-form {
+    &__header {
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        margin-bottom: 1.6rem;
+        position: relative;
+        height: 1.6rem;
+        white-space: nowrap;
+
+        &-section {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+        }
+        &-section:after {
+            border-top: 1px solid var(--general-section-1);
+            content: '';
+            height: 100%;
+            width: 100%;
+            margin-top: 0.3rem;
+            @include mobile {
+                border-top-color: var(--general-disabled);
+            }
+        }
+        &--has-description {
+            margin-bottom: 0.5rem;
+        }
+    }
+    &__header:not(:first-child) {
+        margin-top: 1.6rem;
+    }
+    &__title {
+        padding-right: 0.8rem;
+    }
+    &__subtitle {
+        align-self: baseline;
+        padding-right: 0.8rem;
+        margin-top: 0.2rem;
+    }
+    &__description {
+        font-size: 1.2rem;
+        font-weight: normal;
+        color: var(--text-prominent);
+        margin-bottom: 2rem;
+        line-height: 1.5;
+    }
+}
