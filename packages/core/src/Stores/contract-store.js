@@ -1,7 +1,8 @@
-import { action, extendObservable, observable, toJS } from 'mobx';
+import { action, extendObservable, observable, toJS, makeObservable } from 'mobx';
 import {
     isEnded,
     isEqualObject,
+    isAccumulatorContract,
     isMultiplierContract,
     isDigitContract,
     getDigitInfo,
@@ -11,6 +12,7 @@ import {
     getContractValidationRules,
     BARRIER_COLORS,
     BARRIER_LINE_STYLES,
+    DEFAULT_SHADES,
     isBarrierSupported,
     getEndTime,
 } from '@deriv/shared';
@@ -27,45 +29,72 @@ export default class ContractStore extends BaseStore {
             validation_rules: getContractValidationRules(),
         });
 
+        makeObservable(this, {
+            digits_info: observable,
+            sell_info: observable,
+            contract_config: observable.ref,
+            display_status: observable,
+            is_ended: observable,
+            is_digit_contract: observable,
+            error_message: observable,
+            contract_info: observable.ref,
+            is_static_chart: observable,
+            end_time: observable,
+            contract_update_take_profit: observable,
+            contract_update_stop_loss: observable,
+            has_contract_update_take_profit: observable,
+            has_contract_update_stop_loss: observable,
+            contract_update_history: observable.ref,
+            margin: observable,
+            barriers_array: observable.shallow,
+            markers_array: observable.shallow,
+            marker: observable.ref,
+            populateConfig: action.bound,
+            populateContractUpdateConfig: action.bound,
+            populateContractUpdateHistory: action.bound,
+            clearContractUpdateConfigValues: action.bound,
+            onChange: action.bound,
+            updateLimitOrder: action.bound,
+        });
+
         this.root_store = root_store;
         this.contract_id = contract_id;
     }
 
     // --- Observable properties ---
-    @observable digits_info = observable.object({});
-    @observable sell_info = observable.object({});
+    digits_info = observable.object({});
+    sell_info = observable.object({});
 
-    @observable.ref contract_config = {};
-    @observable display_status = 'purchased';
-    @observable is_ended = false;
-    @observable is_digit_contract = false;
+    contract_config = {};
+    display_status = 'purchased';
+    is_ended = false;
+    is_digit_contract = false;
 
     // TODO: see how to handle errors.
-    @observable error_message = '';
+    error_message = '';
 
-    @observable.ref contract_info = observable.object({});
+    contract_info = observable.object({});
 
-    @observable is_static_chart = false;
-    @observable end_time = null;
+    is_static_chart = false;
+    end_time = null;
 
     // Multiplier contract update config
-    @observable contract_update_take_profit = '';
-    @observable contract_update_stop_loss = '';
-    @observable has_contract_update_take_profit = false;
-    @observable has_contract_update_stop_loss = false;
-    @observable.ref contract_update_history = [];
+    contract_update_take_profit = '';
+    contract_update_stop_loss = '';
+    has_contract_update_take_profit = false;
+    has_contract_update_stop_loss = false;
+    contract_update_history = [];
     contract_update_config = {};
 
     // ---- chart props
-    @observable margin;
-    @observable.shallow barriers_array = [];
-    @observable.shallow markers_array = [];
-    @observable.ref marker = null;
+    margin;
+    barriers_array = [];
+    markers_array = [];
+    marker = null;
 
     // ---- Normal properties ---
     is_ongoing_contract = false;
 
-    @action.bound
     populateConfig(contract_info) {
         const prev_contract_info = this.contract_info;
         this.contract_info = contract_info;
@@ -75,7 +104,6 @@ export default class ContractStore extends BaseStore {
         this.updateBarriersArray(contract_info, this.root_store.ui.is_dark_mode_on);
         this.markers_array = createChartMarkers(this.contract_info);
         this.marker = calculate_marker(this.contract_info);
-
         this.contract_config = getChartConfig(this.contract_info);
         this.display_status = getDisplayStatus(this.contract_info);
         this.is_ended = isEnded(this.contract_info);
@@ -95,8 +123,9 @@ export default class ContractStore extends BaseStore {
         }
 
         const is_multiplier = isMultiplierContract(this.contract_info.contract_type);
+        const is_accumulator = isAccumulatorContract(this.contract_info.contract_type);
 
-        if (is_multiplier && contract_info.contract_id && contract_info.limit_order) {
+        if ((is_accumulator || is_multiplier) && contract_info.contract_id && contract_info.limit_order) {
             this.populateContractUpdateConfig(this.contract_info);
         }
     }
@@ -106,7 +135,6 @@ export default class ContractStore extends BaseStore {
         WS.storage.set({ proposal_open_contract: 1, contract_id }, response);
     };
 
-    @action.bound
     populateContractUpdateConfig(response) {
         const contract_update_config = getContractUpdateConfig(response);
         if (!isEqualObject(this.contract_update_config, contract_update_config)) {
@@ -120,7 +148,6 @@ export default class ContractStore extends BaseStore {
         }
     }
 
-    @action.bound
     populateContractUpdateHistory({ contract_update_history }) {
         this.root_store.contract_replay.contract_store.contract_update_history = contract_update_history.sort(
             (a, b) => b.order_date - a.order_date
@@ -160,12 +187,17 @@ export default class ContractStore extends BaseStore {
         if (contract_info) {
             const { contract_type, barrier, entry_spot, high_barrier, low_barrier } = contract_info;
 
-            if (isBarrierSupported(contract_type) && (barrier || high_barrier || entry_spot)) {
+            if (
+                isBarrierSupported(contract_type) &&
+                (barrier || high_barrier || (entry_spot && !isAccumulatorContract(contract_type)))
+            ) {
                 // create barrier only when it's available in response
                 const main_barrier = new ChartBarrierStore(barrier || high_barrier || entry_spot, low_barrier, null, {
                     color: is_dark_mode ? BARRIER_COLORS.DARK_GRAY : BARRIER_COLORS.GRAY,
-                    line_style: BARRIER_LINE_STYLES.SOLID,
+                    line_style: !isAccumulatorContract(contract_type) && BARRIER_LINE_STYLES.SOLID,
                     not_draggable: true,
+                    hideBarrierLine: isAccumulatorContract(contract_type),
+                    shade: isAccumulatorContract(contract_type) && DEFAULT_SHADES['2'],
                 });
 
                 main_barrier.updateBarrierShade(true, contract_type);
@@ -175,22 +207,21 @@ export default class ContractStore extends BaseStore {
         return barriers;
     };
 
-    @action.bound
     clearContractUpdateConfigValues() {
         Object.assign(this, getContractUpdateConfig(this.contract_info));
         this.validation_errors.contract_update_stop_loss = [];
         this.validation_errors.contract_update_take_profit = [];
     }
 
-    @action.bound
     onChange({ name, value }) {
         this[name] = value;
         this.validateProperty(name, this[name]);
     }
 
-    @action.bound
     updateLimitOrder() {
-        const limit_order = getLimitOrder(this);
+        const limit_order = isAccumulatorContract(this.contract_info.contract_type)
+            ? { take_profit: getLimitOrder(this).take_profit }
+            : getLimitOrder(this);
 
         WS.contractUpdate(this.contract_id, limit_order).then(response => {
             if (response.error) {
@@ -234,8 +265,13 @@ function calculate_marker(contract_info) {
         high_barrier,
         low_barrier,
     } = contract_info;
-    const ticks_epoch_array = tick_stream ? tick_stream.map(t => t.epoch) : [];
+    const is_accumulator_contract = isAccumulatorContract(contract_type);
     const is_digit_contract = isDigitContract(contract_type);
+    const ticks_epochs =
+        (is_accumulator_contract && tick_stream?.length === 10
+            ? [entry_tick_time, ...tick_stream.map(t => t.epoch).slice(1)]
+            : tick_stream?.map(t => t.epoch)) || [];
+    const ticks_epoch_array = tick_stream ? ticks_epochs : [];
 
     // window.ci = toJS(contract_info);
 
@@ -245,7 +281,7 @@ function calculate_marker(contract_info) {
     } else if (+barrier_count === 1 && barrier) {
         price_array = [+barrier];
     } else if (+barrier_count === 2 && high_barrier && low_barrier) {
-        price_array = [+low_barrier, +high_barrier];
+        price_array = [+high_barrier, +low_barrier];
     }
 
     if (entry_tick) {

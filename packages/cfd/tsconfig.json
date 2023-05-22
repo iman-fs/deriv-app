@@ -2,6 +2,7 @@
     "extends": "../../tsconfig.json",
     "compilerOptions": {
         "paths": {
+            "Assets/*": ["./src/Assets/*"],
             "_common/*": ["./src/_common/*"],
             "Constants/*": ["./src/Constants/*"],
             "Components/*": ["./src/Components/*"],
@@ -9,11 +10,12 @@
             "Modules/*": ["./src/Modules/*"],
             "Sass/*": ["./src/sass/*"],
             "Stores/*": ["./src/Stores/*"],
-            "Utils/*": ["./src/Utils/*"]
+            "Utils/*": ["./src/Utils/*"],
+            "@deriv/*": ["../*/src"]
         },
         "outDir": "./dist",
-        "rootDir": "./src",
         "baseUrl": "./"
     },
-    "include": ["./src/**/*.ts", "./src/**/*.tsx", "globals.d.ts"]
+    "include": ["src", "globals.d.ts", "@deriv-stores.d.ts"],
+    "exclude": ["**/__tests__/**/*"]
 }

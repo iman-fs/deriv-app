@@ -1,3 +1,1 @@
-'use strict'
-
-module.exports = require('./lib/index.js');
+module.exports = require('./dist/p2p/js/index');

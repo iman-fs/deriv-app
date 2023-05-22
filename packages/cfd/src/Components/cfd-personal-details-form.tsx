@@ -1,6 +1,5 @@
 import { Field, FieldProps, Formik, FormikHelpers as FormikActions, FormikProps } from 'formik';
 import React from 'react';
-import { FormSubHeader } from '@deriv/account';
 import { LandingCompany, ResidenceList } from '@deriv/api-types';
 import {
     Autocomplete,
@@ -20,31 +19,36 @@ import {
 } from '@deriv/components';
 import { isDeepEqual, isDesktop, isMobile } from '@deriv/shared';
 import { Localize, localize } from '@deriv/translations';
+import RootStore from '../Stores/index';
 
 type TCFDPersonalDetailsFormProps = {
-    is_fully_authenticated: boolean;
-    is_loading: boolean;
-    landing_company: LandingCompany;
-    residence_list: ResidenceList;
-    onSubmit: TOnSubmit;
-    value: TFormValues;
-    index: number;
+    changeable_fields?: string[];
     form_error?: string;
+    index: number;
+    is_loading: boolean;
+    context: RootStore;
+    landing_company: LandingCompany;
+    onSubmit: TOnSubmit;
+    residence_list: ResidenceList;
+    value: TFormValues;
 };
 
 type TValidatePersonalDetailsParams = {
     values: TFormValues;
+    context: RootStore;
     residence_list: ResidenceList;
     account_opening_reason: TAccountOpeningReasonList;
     is_tin_required: boolean;
 };
 
-type TFindDefaultValuesInResidenceList = (
-    citizen_text: string,
-    tax_residence_text: string,
-    residence_list: ResidenceList
-) => {
+type TFindDefaultValuesInResidenceList = (params: {
+    residence_list: ResidenceList;
+    citizen_text: string;
+    tax_residence_text: string;
+    place_of_birth_text?: string;
+}) => {
     citizen?: ResidenceList[0];
+    place_of_birth?: ResidenceList[0];
     tax_residence?: ResidenceList[0];
 };
 
@@ -57,15 +61,11 @@ type TCFDInputFieldProps = {
     optional?: boolean;
     required?: boolean;
     placeholder: string;
+    disabled?: boolean;
     onBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
 };
 
-type TFormValues = {
-    citizen: string;
-    tax_residence: string;
-    tax_identification_number: string;
-    account_opening_reason: string;
-};
+type TFormValues = { [key: string]: string };
 
 type TOnSubmit = (
     index: number,
@@ -116,7 +116,7 @@ export const InputField = ({ maxLength, name, optional = false, ...props }: TCFD
                 required={!optional}
                 name={name}
                 autoComplete='off'
-                maxLength={maxLength || '30'}
+                maxLength={maxLength || 30}
                 error={touched[field.name as keyof TFormValues] && errors[field.name as keyof TFormValues]}
                 {...props}
             />
@@ -126,31 +126,36 @@ export const InputField = ({ maxLength, name, optional = false, ...props }: TCFD
 
 const validatePersonalDetails = ({
     values,
+    context,
     residence_list,
     account_opening_reason,
     is_tin_required,
 }: TValidatePersonalDetailsParams) => {
     const [tax_residence_obj] = residence_list.filter(res => res.text === values.tax_residence && res.tin_format);
-    const [tin_format] = tax_residence_obj?.tin_format ?? [];
-    const tin_regex = tin_format || '^[A-Za-z0-9./s-]{0,25}$'; // fallback to API's default rule check
 
-    const validations = {
+    const tin_format = tax_residence_obj?.tin_format;
+
+    const tin_regex = tin_format || ['^[A-Za-z0-9./s-]{0,25}$']; // fallback to API's default rule check
+
+    const validations: { [key: string]: ((v: string) => boolean | RegExpMatchArray | null)[] } = {
         citizen: [(v: string) => !!v, (v: string) => residence_list.map(i => i.text).includes(v)],
         tax_residence: [(v: string) => !!v, (v: string) => residence_list.map(i => i.text).includes(v)],
         tax_identification_number: [
             (v: string) => ((!values.tax_residence && is_tin_required) || tin_format ? !!v : true),
-            (v: string) => (tin_regex ? v.match(tin_regex) : true),
+            (v: string) => (tin_regex ? tin_regex?.some(regex => v.match(regex)) : true),
         ],
         account_opening_reason: [
             (v: string) => !!v,
             (v: string) => account_opening_reason.map(i => i.value).includes(v),
         ],
+        place_of_birth: [(v: string) => !!v, (v: string) => residence_list.map(i => i.text).includes(v)],
     };
     const mappedKey: { [key: string]: string } = {
         citizen: localize('Citizenship'),
         tax_residence: localize('Tax residence'),
         tax_identification_number: localize('Tax identification number'),
         account_opening_reason: localize('Account opening reason'),
+        place_of_birth: localize('Place of birth'),
     };
 
     const field_error_messages = (field_name: string): string[] => [
@@ -161,7 +166,7 @@ const validatePersonalDetails = ({
     const errors: { [key: string]: React.ReactNode } = {};
 
     Object.entries(validations).forEach(([key, rules]) => {
-        const error_index = rules.findIndex(v => !v(values[key as keyof TFormValues]));
+        const error_index = rules.findIndex(v => !v(values[key as 'citizen']));
         if (error_index !== -1) {
             errors[key] = field_error_messages(mappedKey[key])[error_index];
         }
@@ -170,45 +175,51 @@ const validatePersonalDetails = ({
     return errors;
 };
 
-const findDefaultValuesInResidenceList: TFindDefaultValuesInResidenceList = (
+const findDefaultValuesInResidenceList: TFindDefaultValuesInResidenceList = ({
+    residence_list,
     citizen_text,
     tax_residence_text,
-    residence_list
-) => {
-    let citizen, tax_residence;
-    residence_list.forEach((item: ResidenceList[0]) => {
+    place_of_birth_text,
+}) => {
+    let citizen, tax_residence, place_of_birth;
+    residence_list?.forEach((item: ResidenceList[0]) => {
         if (item.text === citizen_text) {
             citizen = item;
+        }
+        if (item.text === place_of_birth_text) {
+            place_of_birth = item;
         }
         if (item.text === tax_residence_text) {
             tax_residence = item;
         }
     });
-    return { citizen, tax_residence };
+    return { citizen, place_of_birth, tax_residence };
 };
 
-const submitForm: TSubmitForm = (values, actions, idx, onSubmitFn, is_dirty, residence_list) => {
-    const { citizen: citizen_text, tax_residence: tax_residence_text, ...restOfValues } = values;
-    const { citizen, tax_residence } = findDefaultValuesInResidenceList(
-        citizen_text,
-        tax_residence_text,
-        residence_list
-    );
+const submitForm: TSubmitForm = (values, actions, idx, onSubmit, is_dirty, residence_list) => {
+    const { citizen, place_of_birth, tax_residence } = findDefaultValuesInResidenceList({
+        residence_list,
+        citizen_text: values.citizen,
+        tax_residence_text: values.tax_residence,
+        place_of_birth_text: values.place_of_birth,
+    });
 
     const payload = {
-        citizen: citizen && citizen.value ? citizen.value : '',
-        tax_residence: tax_residence && tax_residence.value ? tax_residence.value : '',
-        ...restOfValues,
+        ...values,
+        citizen: citizen?.value || '',
+        place_of_birth: place_of_birth?.value || '',
+        tax_residence: tax_residence?.value || '',
     };
-    onSubmitFn(idx, payload, actions.setSubmitting, is_dirty);
+    onSubmit(idx, payload, actions.setSubmitting, is_dirty);
 };
 
 const CFDPersonalDetailsForm = ({
-    is_fully_authenticated,
+    changeable_fields,
     is_loading,
     landing_company,
     residence_list,
     onSubmit,
+    context,
     value,
     index,
     form_error,
@@ -224,24 +235,20 @@ const CFDPersonalDetailsForm = ({
 
     return (
         <Formik
-            initialValues={{
-                citizen: value.citizen,
-                tax_residence: value.tax_residence,
-                tax_identification_number: value.tax_identification_number,
-                account_opening_reason: value.account_opening_reason,
-            }}
-            validateOnMount
+            initialValues={{ ...value }}
             validateOnChange
             validateOnBlur
             validate={values =>
                 validatePersonalDetails({
                     values,
+                    context,
                     residence_list,
                     account_opening_reason,
                     is_tin_required,
                 })
             }
             onSubmit={onSubmitForm}
+            validateOnMount
         >
             {({
                 handleSubmit,
@@ -255,29 +262,35 @@ const CFDPersonalDetailsForm = ({
                 isValid,
             }: FormikProps<TFormValues>) => {
                 const citizenship_error = touched.citizen && errors.citizen;
+                const place_of_birth_error = touched.place_of_birth && errors.place_of_birth;
                 const tax_residence_error = touched.tax_residence && errors.tax_residence;
                 const account_opening_reason_error = touched.account_opening_reason && errors.account_opening_reason;
-                const is_citizenship_disabled = !!(value.citizen && is_fully_authenticated);
-                const is_tax_residence_disabled = !!(value.tax_residence && is_fully_authenticated);
+
+                const is_citizenship_disabled = !!value.citizen && !changeable_fields?.includes('citizen');
+                const is_place_of_birth_disabled =
+                    !!value.place_of_birth && !changeable_fields?.includes('place_of_birth');
+                const is_tax_residence_disabled =
+                    !!value.tax_residence && !changeable_fields?.includes('tax_residence');
+                const is_account_opening_reason_disabled =
+                    !!value.account_opening_reason && !changeable_fields?.includes('account_opening_reason');
                 const handleItemSelection = (item: ResidenceList[0], _field: string) => {
                     const item_value = item.value ? item.text : '';
                     setFieldValue(_field, item_value, true);
                 };
+                const tin_field_label = residence_list.find(res => res.text === values.tax_residence && res.tin_format)
+                    ?.tin_format
+                    ? localize('Tax identification number*')
+                    : localize('Tax identification number');
 
                 return (
                     <AutoHeightWrapper default_height={200} height_offset={isDesktop() ? 148 : null}>
-                        {({
-                            height,
-                            setRef,
-                        }: {
-                            height: number;
-                            setRef: (instance: HTMLFormElement | null) => void;
-                        }) => (
+                        {({ setRef }: { setRef: (instance: HTMLFormElement | null) => void }) => (
                             <form
-                                className='cfd-financial-stp-modal__form'
+                                className='cfd-personal-details-modal__form'
                                 ref={setRef}
                                 onSubmit={handleSubmit}
                                 autoComplete='off'
+                                noValidate
                             >
                                 <Div100vhContainer
                                     className='details-form'
@@ -286,7 +299,7 @@ const CFDPersonalDetailsForm = ({
                                 >
                                     <Text
                                         as='p'
-                                        size='xxxs'
+                                        size='xxs'
                                         align='center'
                                         className='details-form__description'
                                         data-testid='dt_cfd_details_form_description'
@@ -297,9 +310,8 @@ const CFDPersonalDetailsForm = ({
                                             }
                                         />
                                     </Text>
-                                    <ThemedScrollbars height={height} is_bypassed={isMobile()}>
+                                    <ThemedScrollbars height='512px' is_bypassed={isMobile()}>
                                         <div className='details-form__elements'>
-                                            <FormSubHeader title={localize('Details')} />
                                             <fieldset className='account-form__fieldset'>
                                                 <DesktopWrapper>
                                                     <Field name='citizen'>
@@ -310,7 +322,7 @@ const CFDPersonalDetailsForm = ({
                                                                 data-lpignore='true'
                                                                 autoComplete='off'
                                                                 type='text'
-                                                                label={localize('Citizenship')}
+                                                                label={localize('Citizenship*')}
                                                                 error={citizenship_error}
                                                                 disabled={is_citizenship_disabled}
                                                                 list_items={residence_list}
@@ -326,7 +338,7 @@ const CFDPersonalDetailsForm = ({
                                                 <MobileWrapper>
                                                     <SelectNative
                                                         placeholder={localize('Please select')}
-                                                        label={localize('Citizenship')}
+                                                        label={localize('Citizenship*')}
                                                         value={values.citizen}
                                                         list_items={residence_list}
                                                         error={citizenship_error}
@@ -340,7 +352,46 @@ const CFDPersonalDetailsForm = ({
                                                     />
                                                 </MobileWrapper>
                                             </fieldset>
-                                            <FormSubHeader title={localize('Tax information')} />
+                                            <fieldset className='account-form__fieldset'>
+                                                <DesktopWrapper>
+                                                    <Field name='place_of_birth'>
+                                                        {({ field }: FieldProps<string, TFormValues>) => (
+                                                            <Autocomplete
+                                                                {...field}
+                                                                id='real_mt5_place_of_birth'
+                                                                data-lpignore='true'
+                                                                autoComplete='off'
+                                                                type='text'
+                                                                label={localize('Place of birth*')}
+                                                                error={place_of_birth_error}
+                                                                disabled={is_place_of_birth_disabled}
+                                                                list_items={residence_list}
+                                                                onItemSelection={(item: ResidenceList[0]) =>
+                                                                    handleItemSelection(item, 'place_of_birth')
+                                                                }
+                                                                list_portal_id='modal_root'
+                                                                required
+                                                            />
+                                                        )}
+                                                    </Field>
+                                                </DesktopWrapper>
+                                                <MobileWrapper>
+                                                    <SelectNative
+                                                        placeholder={localize('Please select')}
+                                                        label={localize('Place of birth*')}
+                                                        value={values.place_of_birth}
+                                                        list_items={residence_list}
+                                                        error={place_of_birth_error}
+                                                        disabled={is_place_of_birth_disabled}
+                                                        use_text={true}
+                                                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                                                            setFieldValue('place_of_birth', e.target.value, true)
+                                                        }
+                                                        required
+                                                        should_hide_disabled_options={false}
+                                                    />
+                                                </MobileWrapper>
+                                            </fieldset>
                                             <fieldset className='account-form__fieldset'>
                                                 <DesktopWrapper>
                                                     <Field name='tax_residence'>
@@ -350,7 +401,7 @@ const CFDPersonalDetailsForm = ({
                                                                 data-lpignore='true'
                                                                 type='text'
                                                                 autoComplete='off'
-                                                                label={localize('Tax residence')}
+                                                                label={localize('Tax residence*')}
                                                                 error={tax_residence_error}
                                                                 disabled={is_tax_residence_disabled}
                                                                 list_items={residence_list}
@@ -366,7 +417,7 @@ const CFDPersonalDetailsForm = ({
                                                 <MobileWrapper>
                                                     <SelectNative
                                                         placeholder={localize('Please select')}
-                                                        label={localize('Tax residence')}
+                                                        label={localize('Tax residence*')}
                                                         value={values.tax_residence}
                                                         error={tax_residence_error}
                                                         disabled={is_tax_residence_disabled}
@@ -383,25 +434,29 @@ const CFDPersonalDetailsForm = ({
                                                 <InputField
                                                     id='real_mt5_tax_identification_number'
                                                     name='tax_identification_number'
-                                                    label={localize('Tax identification number')}
-                                                    placeholder={localize('Tax identification number')}
+                                                    label={tin_field_label}
+                                                    placeholder={tin_field_label}
                                                     value={values.tax_identification_number}
                                                     onBlur={handleBlur}
+                                                    disabled={
+                                                        !!value.tax_identification_number &&
+                                                        !changeable_fields?.includes('tax_identification_number')
+                                                    }
                                                     optional
                                                 />
                                             </fieldset>
-                                            <FormSubHeader title={localize('Account opening reason')} />
                                             <Field name='account_opening_reason'>
                                                 {({ field }: FieldProps<string, TFormValues>) => (
                                                     <React.Fragment>
                                                         <DesktopWrapper>
                                                             <Dropdown
                                                                 {...field}
-                                                                placeholder={localize('Account opening reason')}
+                                                                placeholder={localize('Account opening reason*')}
                                                                 is_align_text_left
                                                                 name={field.name}
                                                                 list={account_opening_reason}
                                                                 value={values.account_opening_reason}
+                                                                disabled={is_account_opening_reason_disabled}
                                                                 onChange={handleChange}
                                                                 handleBlur={handleBlur}
                                                                 error={account_opening_reason_error}
@@ -413,9 +468,10 @@ const CFDPersonalDetailsForm = ({
                                                                 {...field}
                                                                 placeholder={localize('Please select')}
                                                                 name={field.name}
-                                                                label={localize('Account opening reason')}
+                                                                label={localize('Account opening reason*')}
                                                                 list_items={account_opening_reason}
                                                                 value={values.account_opening_reason}
+                                                                disabled={is_account_opening_reason_disabled}
                                                                 error={account_opening_reason_error}
                                                                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                                                                     handleChange(e);
@@ -425,6 +481,7 @@ const CFDPersonalDetailsForm = ({
                                                                         true
                                                                     );
                                                                 }}
+                                                                data_testid='account_opening_reason_mobile'
                                                             />
                                                         </MobileWrapper>
                                                     </React.Fragment>
@@ -433,12 +490,13 @@ const CFDPersonalDetailsForm = ({
                                         </div>
                                     </ThemedScrollbars>
                                 </Div100vhContainer>
-                                <Modal.Footer is_bypassed={isMobile()}>
+                                <Modal.Footer is_bypassed={isMobile()} has_separator>
                                     {form_error && <FormSubmitErrorMessage message={form_error} />}
                                     <FormSubmitButton
-                                        is_disabled={isSubmitting || !isValid}
+                                        is_disabled={isSubmitting || !isValid || Object.keys(errors).length > 0}
                                         is_absolute={isMobile()}
                                         label={localize('Next')}
+                                        context={context}
                                     />
                                 </Modal.Footer>
                             </form>

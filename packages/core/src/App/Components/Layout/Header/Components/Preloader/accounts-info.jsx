@@ -7,8 +7,8 @@ const AccountsInfoLoader = ({ is_mobile, is_logged_in, speed }) => (
         height={is_mobile ? 42 : 46}
         width={is_mobile ? 216 : 350}
         speed={speed}
-        primaryColor={'var(--general-section-1)'}
-        secondaryColor={'var(--general-hover)'}
+        backgroundColor={'var(--general-section-1)'}
+        foregroundColor={'var(--general-hover)'}
     >
         {is_logged_in ? <LoggedInPreloader is_mobile={is_mobile} /> : <LoggedOutPreloader is_mobile={is_mobile} />}
     </ContentLoader>
@@ -44,6 +44,8 @@ const LoggedInPreloader = ({ is_mobile }) => (
 
 AccountsInfoLoader.propTypes = {
     speed: PropTypes.number,
+    is_mobile: PropTypes.bool,
+    is_logged_in: PropTypes.bool,
 };
 
 export { AccountsInfoLoader };

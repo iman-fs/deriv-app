@@ -1,73 +1,34 @@
 import classNames from 'classnames';
-import { Field, Formik, Form } from 'formik';
+import { Formik, Form } from 'formik';
 import PropTypes from 'prop-types';
 import React from 'react';
-import { Button, Dialog, Loading, PasswordInput, PasswordMeter, Text } from '@deriv/components';
-import {
-    validPassword,
-    getLocation,
-    validLength,
-    website_name,
-    getErrorMessages,
-    PlatformContext,
-    redirectToSignUp,
-} from '@deriv/shared';
-import { localize, Localize } from '@deriv/translations';
+import { Button, Dialog, Loading, Text } from '@deriv/components';
+import { getLocation, PlatformContext } from '@deriv/shared';
+import { localize } from '@deriv/translations';
 import { WS } from 'Services';
 import { connect } from 'Stores/connect';
-import SignupSeparatorContainer from './signup-separator-container.jsx';
+import PasswordSelectionModal from '../PasswordSelectionModal/password-selection-modal.jsx';
 import ResidenceForm from '../SetResidenceModal/set-residence-form.jsx';
+import CitizenshipForm from '../CitizenshipModal/set-citizenship-form.jsx';
 import 'Sass/app/modules/account-signup.scss';
-
-const signupInitialValues = { password: '', residence: '' };
-
-const validateSignup = (values, residence_list) => {
-    const errors = {};
-
-    if (
-        !validLength(values.password, {
-            min: 8,
-            max: 25,
-        })
-    ) {
-        errors.password = localize('You should enter {{min_number}}-{{max_number}} characters.', {
-            min_number: 8,
-            max_number: 25,
-        });
-    } else if (!validPassword(values.password)) {
-        errors.password = getErrorMessages().password();
-    }
-
-    if (!values.residence) {
-        errors.residence = true;
-    } else {
-        const index_of_selection = residence_list.findIndex(
-            item => item.text.toLowerCase() === values.residence.toLowerCase()
-        );
-
-        if (index_of_selection === -1 || residence_list[index_of_selection].disabled === 'DISABLED') {
-            errors.residence = localize('Unfortunately, {{website_name}} is not available in your country.', {
-                website_name,
-            });
-        }
-    }
-
-    return errors;
-};
+import validateSignupFields from './validate-signup-fields.jsx';
 
 const AccountSignup = ({ enableApp, isModalVisible, clients_country, onSignup, residence_list }) => {
+    const signupInitialValues = { citizenship: '', password: '', residence: '' };
     const { is_appstore } = React.useContext(PlatformContext);
     const [api_error, setApiError] = React.useState(false);
     const [is_loading, setIsLoading] = React.useState(true);
     const [country, setCountry] = React.useState('');
+    const history_value = React.useRef();
     const [pw_input, setPWInput] = React.useState('');
-    const [selected_residence, setSelectedResidence] = React.useState('');
+    const [is_password_modal, setIsPasswordModal] = React.useState(false);
+    const disableBtn = (values, errors) =>
+        !values.residence || !!errors.residence || !values.citizenship || !!errors.citizenship;
 
     const updatePassword = new_password => {
         setPWInput(new_password);
     };
 
-    const onResidenceSelection = residence => setSelectedResidence(residence);
     // didMount lifecycle hook
     React.useEffect(() => {
         WS.wait('website_status', 'residence_list').then(() => {
@@ -78,6 +39,24 @@ const AccountSignup = ({ enableApp, isModalVisible, clients_country, onSignup, r
         });
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+    const validateSignupPassthrough = values => validateSignupFields(values, residence_list);
+
+    const indexOfSelection = selected_country =>
+        residence_list.findIndex(item => item.text.toLowerCase() === selected_country.toLowerCase());
+
+    const onSignupPassthrough = values => {
+        const index_of_selected_residence = indexOfSelection(values.residence);
+        const index_of_selected_citizenship = indexOfSelection(values.citizenship);
+
+        const modded_values = {
+            ...values,
+            residence: residence_list[index_of_selected_residence].value,
+            citizenship: residence_list[index_of_selected_citizenship].value,
+        };
+
+        onSignup(modded_values, onSignupComplete);
+    };
+
     const onSignupComplete = error => {
         if (error) {
             setApiError(error);
@@ -86,21 +65,6 @@ const AccountSignup = ({ enableApp, isModalVisible, clients_country, onSignup, r
             enableApp();
         }
     };
-
-    const validateSignupPassthrough = values => validateSignup(values, residence_list);
-
-    const onSignupPassthrough = values => {
-        const index_of_selection = residence_list.findIndex(
-            item => item.text.toLowerCase() === values.residence.toLowerCase()
-        );
-
-        const modded_values = {
-            ...values,
-            residence: residence_list[index_of_selection].value,
-        };
-        onSignup(modded_values, onSignupComplete);
-    };
-
     return (
         <div className='account-signup'>
             {is_loading ? (
@@ -123,107 +87,61 @@ const AccountSignup = ({ enableApp, isModalVisible, clients_country, onSignup, r
                         touched,
                     }) => (
                         <Form>
-                            {!selected_residence ? (
-                                <ResidenceForm
-                                    header_text={localize('Thanks for verifying your email')}
-                                    class_prefix='account-signup'
-                                    errors={errors}
-                                    touched={touched}
-                                    setFieldTouched={setFieldTouched}
-                                    setFieldValue={setFieldValue}
-                                    residence_list={residence_list}
-                                    default_value={country}
-                                >
-                                    <Button
-                                        className={classNames('account-signup__btn', {
-                                            'account-signup__btn--disabled': !values.residence || errors.residence,
-                                        })}
-                                        type='button'
-                                        is_disabled={!values.residence || !!errors.residence}
-                                        onClick={() => {
-                                            onResidenceSelection(values.residence);
-                                        }}
-                                        primary
-                                        text={localize('Next')}
+                            {!is_password_modal ? (
+                                <div className='account-signup__main'>
+                                    <Text as='h1' weight='bold' className='account-signup__heading'>
+                                        {localize('Select your country and citizenship:')}
+                                    </Text>
+                                    <ResidenceForm
+                                        class_prefix='account-signup'
+                                        errors={errors}
+                                        touched={touched}
+                                        setFieldTouched={setFieldTouched}
+                                        setFieldValue={setFieldValue}
+                                        residence_list={residence_list}
+                                        default_value={country}
+                                        history_value={history_value.current}
                                     />
-                                </ResidenceForm>
-                            ) : (
-                                <div className='account-signup__password-selection'>
-                                    <Text as='p' weight='bold' className='account-signup__heading' align='center'>
-                                        <Localize i18n_default_text='Keep your account secure with a password' />
-                                    </Text>
-                                    <Field name='password'>
-                                        {({ field }) => (
-                                            <PasswordMeter
-                                                input={pw_input}
-                                                has_error={!!(touched.password && errors.password)}
-                                                custom_feedback_messages={getErrorMessages().password_warnings}
-                                            >
-                                                <PasswordInput
-                                                    {...field}
-                                                    autoComplete='new-password'
-                                                    className='account-signup__password-field'
-                                                    label={localize('Create a password')}
-                                                    error={touched.password && errors.password}
-                                                    required
-                                                    value={values.password}
-                                                    onBlur={handleBlur}
-                                                    onChange={e => {
-                                                        const input = e.target;
-                                                        setFieldTouched('password', true);
-                                                        if (input) updatePassword(input.value);
-                                                        handleChange(e);
-                                                    }}
-                                                    input_id='dt_core_account-signup-modal_account-signup-password-field'
-                                                />
-                                            </PasswordMeter>
-                                        )}
-                                    </Field>
-
-                                    <Text as='p' size='xxs' className='account-signup__subtext' align='center'>
-                                        <Localize i18n_default_text='Strong passwords contain at least 8 characters, combine uppercase and lowercase letters, numbers, and symbols.' />
-                                    </Text>
-                                    <SignupSeparatorContainer />
-                                    {api_error ? (
-                                        <React.Fragment>
-                                            <Text
-                                                as='p'
-                                                size='xxs'
-                                                color='loss-danger'
-                                                className='account-signup__subtext account-signup__subtext--error'
-                                                align='center'
-                                            >
-                                                {api_error}
-                                            </Text>
-                                            <div className='account-signup__error-wrapper'>
-                                                <Button
-                                                    secondary
-                                                    text={localize('Cancel')}
-                                                    type='button'
-                                                    onClick={() => isModalVisible(false)}
-                                                />
-                                                <Button
-                                                    primary
-                                                    text={localize('Create new account')}
-                                                    type='button'
-                                                    onClick={() => redirectToSignUp({ is_appstore })}
-                                                />
-                                            </div>
-                                        </React.Fragment>
-                                    ) : (
+                                    <CitizenshipForm
+                                        class_prefix='account-signup'
+                                        errors={errors}
+                                        touched={touched}
+                                        setFieldTouched={setFieldTouched}
+                                        setFieldValue={setFieldValue}
+                                        citizenship_list={residence_list}
+                                    />
+                                    <div className='account-signup__footer'>
                                         <Button
                                             className={classNames('account-signup__btn', {
-                                                'account-signup__btn--disabled':
-                                                    !values.password || errors.password || isSubmitting,
+                                                'account-signup__btn--disabled': disableBtn(values, errors),
                                             })}
-                                            id='dt_core_account-signup-modal_submit-btn'
-                                            type='submit'
-                                            is_disabled={!values.password || !!errors.password || isSubmitting}
-                                            text={localize('Start trading')}
+                                            is_disabled={disableBtn(values, errors)}
+                                            type='button'
+                                            onClick={() => {
+                                                history_value.current = values;
+                                                setIsPasswordModal(true);
+                                            }}
                                             primary
+                                            large
+                                            text={localize('Next')}
                                         />
-                                    )}
+                                    </div>
                                 </div>
+                            ) : (
+                                <PasswordSelectionModal
+                                    api_error={api_error}
+                                    errors={errors}
+                                    handleBlur={handleBlur}
+                                    handleChange={handleChange}
+                                    is_appstore={is_appstore}
+                                    isModalVisible={isModalVisible}
+                                    isSubmitting={isSubmitting}
+                                    touched={touched}
+                                    pw_input={pw_input}
+                                    setFieldTouched={setFieldTouched}
+                                    updatePassword={updatePassword}
+                                    values={values}
+                                />
                             )}
                         </Form>
                     )}
@@ -234,6 +152,7 @@ const AccountSignup = ({ enableApp, isModalVisible, clients_country, onSignup, r
 };
 
 AccountSignup.propTypes = {
+    clients_country: PropTypes.string,
     enableApp: PropTypes.func,
     onSignup: PropTypes.func,
     residence_list: PropTypes.array,
@@ -261,12 +180,12 @@ const AccountSignupModal = ({
 
     return (
         <Dialog
+            className='account-signup__dialog'
             is_visible={is_visible}
             disableApp={disableApp}
             enableApp={enableApp}
             is_loading={is_loading || !residence_list.length}
             is_mobile_full_width={false}
-            is_content_centered
         >
             <AccountSignup
                 clients_country={clients_country}
@@ -284,9 +203,12 @@ AccountSignupModal.propTypes = {
     disableApp: PropTypes.func,
     enableApp: PropTypes.func,
     is_loading: PropTypes.bool,
+    is_logged_in: PropTypes.bool,
     is_visible: PropTypes.bool,
+    logout: PropTypes.func,
     onSignup: PropTypes.func,
     residence_list: PropTypes.arrayOf(PropTypes.object),
+    toggleAccountSignupModal: PropTypes.func,
 };
 
 export default connect(({ ui, client }) => ({

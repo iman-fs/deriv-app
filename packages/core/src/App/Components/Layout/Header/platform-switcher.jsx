@@ -1,15 +1,25 @@
-import classNames from 'classnames';
-import PropTypes from 'prop-types';
-import React from 'react';
-import { withRouter } from 'react-router-dom';
-import { CSSTransition } from 'react-transition-group';
-import { Icon, Text } from '@deriv/components';
-import { getPlatformInformation, isMobile } from '@deriv/shared';
-import { PlatformSwitcherLoader } from './Components/Preloader/platform-switcher.jsx';
-import { PlatformDropdown } from './platform-dropdown.jsx';
 import 'Sass/app/_common/components/platform-switcher.scss';
 
-const PlatformSwitcher = ({ toggleDrawer, app_routing_history, platform_config }) => {
+import { Icon } from '@deriv/components';
+import { getPlatformInformation, isMobile } from '@deriv/shared';
+
+import { CSSTransition } from 'react-transition-group';
+import { PlatformDropdown } from './platform-dropdown.jsx';
+import { PlatformSwitcherLoader } from './Components/Preloader/platform-switcher.jsx';
+import PropTypes from 'prop-types';
+import React from 'react';
+import classNames from 'classnames';
+import { withRouter } from 'react-router-dom';
+
+const PlatformSwitcher = ({
+    toggleDrawer,
+    app_routing_history,
+    platform_config,
+    is_landing_company_loaded,
+    is_logged_in,
+    is_logging_in,
+    setTogglePlatformType,
+}) => {
     const [is_open, setIsOpen] = React.useState(false);
 
     const is_close_drawer_fired_ref = React.useRef(false);
@@ -28,8 +38,9 @@ const PlatformSwitcher = ({ toggleDrawer, app_routing_history, platform_config }
         is_close_drawer_fired_ref.current = true;
     };
 
-    return app_routing_history.length === 0 ? (
+    return (is_logged_in || is_logging_in ? !is_landing_company_loaded : app_routing_history.length === 0) ? (
         <div
+            data-testid='dt_platform_switcher_preloader'
             className={classNames('platform-switcher__preloader', {
                 'platform-switcher__preloader--is-mobile': isMobile(),
             })}
@@ -39,6 +50,7 @@ const PlatformSwitcher = ({ toggleDrawer, app_routing_history, platform_config }
     ) : (
         <React.Fragment>
             <div
+                data-testid='dt_platform_switcher'
                 className={classNames(
                     'platform-switcher',
                     { 'platform-switcher--active': is_open },
@@ -49,11 +61,10 @@ const PlatformSwitcher = ({ toggleDrawer, app_routing_history, platform_config }
                 <Icon
                     className='platform-switcher__icon'
                     icon={getPlatformInformation(app_routing_history).icon}
-                    size={32}
+                    description={getPlatformInformation(app_routing_history).header}
+                    size={120}
                 />
-                <Text as='h1' styles={{ lineHeight: '2.4rem' }} weight='bold'>
-                    {getPlatformInformation(app_routing_history).header}
-                </Text>
+
                 <Icon className='platform-switcher__arrow' icon='IcChevronDownBold' />
             </div>
             <CSSTransition
@@ -70,6 +81,7 @@ const PlatformSwitcher = ({ toggleDrawer, app_routing_history, platform_config }
                     platform_config={platform_config}
                     closeDrawer={closeDrawer}
                     app_routing_history={app_routing_history}
+                    setTogglePlatformType={setTogglePlatformType}
                 />
             </CSSTransition>
         </React.Fragment>
@@ -78,8 +90,12 @@ const PlatformSwitcher = ({ toggleDrawer, app_routing_history, platform_config }
 
 PlatformSwitcher.propTypes = {
     platform_config: PropTypes.array,
+    toggleDrawer: PropTypes.func,
+    app_routing_history: PropTypes.array,
+    is_landing_company_loaded: PropTypes.bool,
+    is_logged_in: PropTypes.bool,
+    is_logging_in: PropTypes.bool,
+    setTogglePlatformType: PropTypes.func,
 };
-
-export { PlatformSwitcher as TestedPlatformSwitcher };
 
 export default withRouter(PlatformSwitcher);

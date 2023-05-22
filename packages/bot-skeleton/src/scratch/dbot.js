@@ -9,6 +9,7 @@ import { getSavedWorkspaces, saveWorkspaceToRecent } from '../utils/local-storag
 import { observer as globalObserver } from '../utils/observer';
 import ApiHelpers from '../services/api/api-helpers';
 import Interpreter from '../services/tradeEngine/utils/interpreter';
+import { api_base } from '../services/api/api-base';
 
 class DBot {
     constructor() {
@@ -95,7 +96,7 @@ class DBot {
                 window.dispatchEvent(new Event('resize'));
                 window.addEventListener('dragover', DBot.handleDragOver);
                 window.addEventListener('drop', e => DBot.handleDropOver(e, handleFileChange));
-
+                api_base.init();
                 // disable overflow
                 el_scratch_div.parentNode.style.overflow = 'hidden';
                 resolve();
@@ -132,7 +133,7 @@ class DBot {
             }
 
             this.interpreter = Interpreter();
-
+            api_base.setIsRunning(true);
             this.interpreter.run(code).catch(error => {
                 globalObserver.emit('Error', error);
                 this.stopBot();
@@ -224,6 +225,7 @@ class DBot {
      * that trade will be completed first to reflect correct contract status in UI.
      */
     stopBot() {
+        api_base.setIsRunning(false);
         if (this.interpreter) {
             this.interpreter.stop();
         }
@@ -238,6 +240,10 @@ class DBot {
             this.interpreter = null;
         }
     }
+
+    terminateConnection = () => {
+        api_base.terminate();
+    };
 
     /**
      * Unselects any selected block before running the bot.

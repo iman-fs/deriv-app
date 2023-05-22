@@ -1,12 +1,16 @@
 import * as React from 'react';
 import { Money, Table, Text } from '@deriv/components';
 import { isMobile } from '@deriv/shared';
-import { observer } from 'mobx-react-lite';
+import { observer, useStore } from '@deriv/stores';
 import { Localize, localize } from 'Components/i18next';
 import { useStores } from 'Stores';
 
 const MyProfileStatsTable = () => {
-    const { my_profile_store, general_store } = useStores();
+    const {
+        client: { currency },
+    } = useStore();
+
+    const { general_store } = useStores();
 
     const {
         buy_completion_rate,
@@ -20,7 +24,7 @@ const MyProfileStatsTable = () => {
         sell_orders_count,
         total_orders_count,
         total_turnover,
-    } = my_profile_store.advertiser_info;
+    } = general_store.advertiser_info;
 
     const [show_lifetime_turnover_value, setShowLifetimeTurnoverValue] = React.useState(false);
     const [show_lifetime_order_value, setShowLifetimeOrderValue] = React.useState(false);
@@ -141,15 +145,11 @@ const MyProfileStatsTable = () => {
                             </Text>
                             <Text as='p' color='prominent' line_height='m' size='xs' weight='bold'>
                                 {show_lifetime_turnover_value ? (
-                                    <Money
-                                        amount={total_turnover}
-                                        currency={general_store.client.currency}
-                                        show_currency
-                                    />
+                                    <Money amount={total_turnover} currency={currency} show_currency />
                                 ) : (
                                     <Money
                                         amount={Number(buy_orders_amount) + Number(sell_orders_amount)}
-                                        currency={general_store.client.currency}
+                                        currency={currency}
                                         show_currency
                                     />
                                 )}
@@ -311,11 +311,11 @@ const MyProfileStatsTable = () => {
                         </Text>
                         <Text as='p' color='prominent' line_height='m' size='xs' weight='bold'>
                             {show_lifetime_turnover_value ? (
-                                <Money amount={total_turnover} currency={general_store.client.currency} show_currency />
+                                <Money amount={total_turnover} currency={currency} show_currency />
                             ) : (
                                 <Money
                                     amount={Number(buy_orders_amount) + Number(sell_orders_amount)}
-                                    currency={general_store.client.currency}
+                                    currency={currency}
                                     show_currency
                                 />
                             )}

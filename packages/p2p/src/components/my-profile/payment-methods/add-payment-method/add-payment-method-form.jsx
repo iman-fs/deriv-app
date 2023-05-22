@@ -2,25 +2,22 @@ import React from 'react';
 import classNames from 'classnames';
 import PropTypes from 'prop-types';
 import { observer } from 'mobx-react-lite';
-import { Field, Form, Formik } from 'formik';
-import { Button, Icon, Input, Loading, Modal, Text } from '@deriv/components';
-import { usePaymentMethodValidator } from 'Components/hooks';
-import { Localize, localize } from 'Components/i18next';
+import { Field, Form } from 'formik';
+import { Button, Icon, Input, Loading, Text } from '@deriv/components';
+import { isDesktop, isMobile } from '@deriv/shared';
+import { Localize } from 'Components/i18next';
 import { useStores } from 'Stores';
+import ModalForm from 'Components/modal-manager/modal-form';
+import { useModalManagerContext } from 'Components/modal-manager/modal-manager-context';
 
-const AddPaymentMethodForm = ({ formik_ref, should_show_separated_footer = false }) => {
-    const { my_ads_store, my_profile_store } = useStores();
-    const validateFields = usePaymentMethodValidator();
+const AddPaymentMethodForm = ({ should_show_separated_footer = false }) => {
+    const { general_store, my_profile_store } = useStores();
+    const { hideModal, modal, showModal } = useModalManagerContext();
 
     React.useEffect(() => {
         my_profile_store.getPaymentMethodsList();
         my_profile_store.getSelectedPaymentMethodDetails();
         my_profile_store.setAddPaymentMethodErrorMessage('');
-        my_profile_store.setIsCancelAddPaymentMethodModalOpen(false);
-
-        return () => {
-            my_profile_store.setSelectedPaymentMethod('');
-        };
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -31,14 +28,13 @@ const AddPaymentMethodForm = ({ formik_ref, should_show_separated_footer = false
 
     return (
         <React.Fragment>
-            <Formik
+            <ModalForm
                 enableReinitialize
-                innerRef={formik_ref}
-                initialValues={{}}
+                initialValues={my_profile_store.initial_values}
                 onSubmit={my_profile_store.createPaymentMethod}
-                validate={validateFields}
+                validate={my_profile_store.validatePaymentMethodFields}
             >
-                {({ dirty, handleChange, isSubmitting, errors }) => {
+                {({ dirty, handleChange, isSubmitting, errors, touched }) => {
                     return (
                         <Form className='add-payment-method-form__form' noValidate>
                             <div className='add-payment-method-form__form-wrapper'>
@@ -67,41 +63,42 @@ const AddPaymentMethodForm = ({ formik_ref, should_show_separated_footer = false
                                         />
                                     )}
                                 </Field>
-                                {my_profile_store.selected_payment_method_fields &&
-                                    my_profile_store.selected_payment_method_fields.map((payment_method_field, key) => {
-                                        return (
-                                            <Field
+                                {my_profile_store.selected_payment_method_fields?.map((payment_method_field, key) => (
+                                    <Field name={payment_method_field[0]} id={payment_method_field[0]} key={key}>
+                                        {({ field }) => (
+                                            <Input
+                                                {...field}
+                                                data-lpignore='true'
+                                                error={
+                                                    touched[payment_method_field[0]] && errors[payment_method_field[0]]
+                                                }
+                                                type={
+                                                    payment_method_field[0] === 'instructions'
+                                                        ? 'textarea'
+                                                        : payment_method_field[1].type
+                                                }
+                                                label={payment_method_field[1].display_name}
+                                                className={classNames({
+                                                    'add-payment-method-form__payment-method-field':
+                                                        !errors[payment_method_field[0]]?.length,
+                                                    'add-payment-method-form__payment-method-field--text-area':
+                                                        payment_method_field[0] === 'instructions',
+                                                })}
+                                                onChange={handleChange}
                                                 name={payment_method_field[0]}
-                                                id={payment_method_field[0]}
-                                                key={key}
-                                            >
-                                                {({ field }) => (
-                                                    <Input
-                                                        {...field}
-                                                        data-lpignore='true'
-                                                        error={errors[payment_method_field[0]]}
-                                                        type={
-                                                            payment_method_field[0] === 'instructions'
-                                                                ? 'textarea'
-                                                                : payment_method_field[1].type
-                                                        }
-                                                        label={payment_method_field[1].display_name}
-                                                        className={classNames({
-                                                            'add-payment-method-form__payment-method-field':
-                                                                !errors[payment_method_field[0]]?.length,
-                                                        })}
-                                                        onChange={handleChange}
-                                                        name={payment_method_field[0]}
-                                                        required={!!payment_method_field[1].required}
-                                                    />
-                                                )}
-                                            </Field>
-                                        );
-                                    })}
+                                                required={!!payment_method_field[1].required}
+                                            />
+                                        )}
+                                    </Field>
+                                ))}
                             </div>
                             <div
                                 className={classNames('add-payment-method-form__buttons', {
-                                    'add-payment-method-form__buttons--separated-footer': should_show_separated_footer,
+                                    'add-payment-method-form__buttons--separated-footer':
+                                        (should_show_separated_footer && isMobile()) ||
+                                        general_store.active_index !== 3,
+                                    'add-payment-method-form__buttons--separated-footer-profile':
+                                        general_store.active_index === 3 && isDesktop(),
                                 })}
                             >
                                 <Button
@@ -109,10 +106,15 @@ const AddPaymentMethodForm = ({ formik_ref, should_show_separated_footer = false
                                     large
                                     onClick={() => {
                                         if (dirty || my_profile_store.selected_payment_method.length > 0) {
-                                            my_profile_store.setIsCancelAddPaymentMethodModalOpen(true);
+                                            showModal({
+                                                key: 'CancelAddPaymentMethodModal',
+                                            });
                                         } else {
                                             my_profile_store.hideAddPaymentMethodForm();
-                                            my_ads_store.setShouldShowAddPaymentMethodModal(false);
+                                            // fixes an issue where in buy-sell-modal mobile, on clicking Cancel button without modifying form it just closes the buy sell modal as
+                                            if (modal.key !== 'BuySellModal') {
+                                                hideModal();
+                                            }
                                         }
                                     }}
                                     type='button'
@@ -131,34 +133,12 @@ const AddPaymentMethodForm = ({ formik_ref, should_show_separated_footer = false
                         </Form>
                     );
                 }}
-            </Formik>
-            <Modal
-                is_open={my_profile_store.should_show_add_payment_method_error_modal}
-                small
-                has_close_icon={false}
-                title={localize("Something's not right")}
-            >
-                <Modal.Body>
-                    <Text color='prominent' size='xs'>
-                        {my_profile_store.add_payment_method_error_message}
-                    </Text>
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button
-                        has_effect
-                        text={localize('Ok')}
-                        onClick={() => my_profile_store.setShouldShowAddPaymentMethodErrorModal(false)}
-                        primary
-                        large
-                    />
-                </Modal.Footer>
-            </Modal>
+            </ModalForm>
         </React.Fragment>
     );
 };
 
 AddPaymentMethodForm.propTypes = {
-    formik_ref: PropTypes.shape({ current: PropTypes.any }),
     should_show_separated_footer: PropTypes.bool,
 };
 

@@ -1,3 +1,13 @@
+@mixin popoverIcons($background-color, $height, $width) {
+    align-items: center;
+    background-color: $background-color;
+    cursor: pointer;
+    display: flex;
+    height: $height;
+    justify-content: center;
+    width: $width;
+}
+
 .p2p-my-ads {
     flex: 1;
     display: flex;
@@ -18,10 +28,14 @@
                 padding-top: 0.4rem;
             }
         }
+        .dc-mobile-full-page-modal {
+            opacity: 1 !important;
+        }
     }
 
     .dc-input__wrapper {
         max-width: 67.2rem; // TODO: Kill these fixed widths.
+        margin-top: 2.1rem;
 
         @include mobile {
             max-width: 90vw;
@@ -54,10 +68,6 @@
 
     &__form {
         @include mobile {
-            &-element {
-                padding: 0 0 10rem;
-            }
-
             .dc-input__footer {
                 justify-content: space-between;
                 width: 86vw;
@@ -65,6 +75,13 @@
 
             .dc-input__hint--relative {
                 margin-left: unset;
+            }
+        }
+
+        &-label {
+            &--focused {
+                color: var(--text-prominent);
+                background-color: var(--general-main-1);
             }
         }
 
@@ -77,6 +94,7 @@
             &--text {
                 display: flex;
                 flex-direction: column;
+                margin-top: 3.2rem;
                 padding-bottom: 1rem;
             }
         }
@@ -102,7 +120,7 @@
         &-summary {
             color: var(--text-less-prominent);
             font-size: 1.4rem;
-            margin-bottom: -1.6rem;
+            margin-bottom: 0.6rem;
 
             @include mobile {
                 margin: 0.6rem 0;
@@ -117,11 +135,26 @@
                 max-width: 67.2rem;
             }
 
+            &-container {
+                @include mobile {
+                    width: 90vw;
+                    margin: 0 1.6rem;
+
+                    .dc-input {
+                        &__wrapper {
+                            margin-top: 2.1rem;
+                        }
+                        &__hint {
+                            margin-top: 0;
+                        }
+                    }
+                }
+            }
+
             @include mobile {
                 height: fit-content;
-                margin: 0 1.6rem;
                 position: unset;
-                width: 90vw;
+                width: 100%;
             }
         }
         &-container {
@@ -130,23 +163,50 @@
             justify-content: space-between;
             width: 67.2rem;
 
+            .dc-input {
+                margin-bottom: 2.1rem;
+                margin-top: 2.1rem;
+
+                &__container {
+                    padding: 0 1rem;
+                }
+                &--hint {
+                    margin-bottom: 0;
+                }
+                &__wrapper {
+                    margin-top: 0;
+                }
+            }
+
             @include mobile {
                 flex-direction: column;
                 height: unset;
                 width: unset;
+
+                .dc-input {
+                    &__wrapper {
+                        margin-bottom: 5rem;
+                    }
+                }
             }
         }
         &-field {
             height: 4rem;
             margin-bottom: 0;
             margin-left: 0;
-            margin-top: 4.3rem;
             width: 32.4rem;
 
             @include mobile {
-                margin: 2.1rem 0;
+                width: inherit;
             }
 
+            &--contact-details {
+                margin-bottom: 5.9rem;
+
+                @include mobile {
+                    margin-bottom: 3.7rem;
+                }
+            }
             &--single {
                 width: 18.9rem;
             }
@@ -156,19 +216,29 @@
                 width: 67.2rem;
 
                 @include mobile {
+                    height: 9.8rem;
                     width: 90vw;
                 }
 
-                .dc-input__hint {
-                    top: 9.7rem;
-                }
-                .dc-input__counter {
-                    top: 9.7rem;
-                    right: 0rem;
+                .dc-input {
+                    &__hint {
+                        top: 9.7rem;
+                    }
+                    &___counter {
+                        top: 9.7rem;
+                        right: 0rem;
 
-                    @include mobile {
-                        display: flex;
-                        right: 0;
+                        @include mobile {
+                            display: flex;
+                            right: 0;
+                        }
+                    }
+                    &__textarea {
+                        padding-top: 1rem;
+                        padding-left: 0;
+                    }
+                    &__container {
+                        height: 9.6rem;
                     }
                 }
             }
@@ -184,29 +254,35 @@
 
             @include mobile {
                 border-top: 2px solid var(--general-section-1);
-                bottom: 0;
                 flex-direction: row;
                 padding: 1.6rem;
-                position: fixed;
-                right: 0;
                 width: 100vw;
-                z-index: 4;
             }
         }
     }
 
-    &__modal-body {
-        display: flex;
-        flex-direction: column;
-        padding: 1rem 1.6rem 0;
-        width: 100vw;
+    &__modal {
+        &-body {
+            display: flex;
+            flex-direction: column;
+            padding: 1rem 1.6rem 0;
+            width: 100vw;
 
-        &--scroll {
-            overflow: auto;
+            &--form {
+                padding: 1rem 0 0;
+            }
+
+            &--scroll {
+                overflow: auto;
+                padding: 1rem 0 0;
+            }
+
+            &--horizontal {
+                padding-right: 0rem;
+            }
         }
-
-        &--horizontal {
-            padding-right: 0rem;
+        &-form {
+            height: fit-content !important;
         }
     }
 
@@ -223,6 +299,10 @@
             display: flex;
             justify-content: space-between;
             padding: 0.3rem 0.5rem;
+
+            &--disabled {
+                cursor: not-allowed;
+            }
         }
 
         &-body {
@@ -273,7 +353,7 @@
             top: 0;
 
             &--disable {
-                cursor: not-allowed;
+                cursor: not-allowed !important;
 
                 @include mobile {
                     background-color: var(--checkbox-disabled-grey) !important;
@@ -290,12 +370,7 @@
             }
 
             &__activate {
-                align-items: center;
-                cursor: pointer;
-                display: flex;
-                height: 3.2rem;
-                justify-content: center;
-                width: 3.2rem;
+                @include popoverIcons(none, 3.2rem, 3.2rem);
 
                 @include desktop {
                     &:hover {
@@ -304,22 +379,12 @@
                 }
 
                 @include mobile {
-                    align-items: center;
-                    background-color: var(--status-warning);
-                    display: flex;
-                    height: 100%;
-                    justify-content: center;
-                    width: 6rem;
+                    @include popoverIcons(var(--status-warning), 100%, 6rem);
                 }
             }
 
             &__deactivate {
-                align-items: center;
-                cursor: pointer;
-                display: flex;
-                height: 3.2rem;
-                justify-content: center;
-                width: 3.2rem;
+                @include popoverIcons(none, 3.2rem, 3.2rem);
 
                 @include desktop {
                     &:hover {
@@ -328,22 +393,12 @@
                 }
 
                 @include mobile {
-                    align-items: center;
-                    background-color: #85acb0;
-                    display: flex;
-                    height: 100%;
-                    justify-content: center;
-                    width: 6rem;
+                    @include popoverIcons(#85acb0, 100%, 6rem);
                 }
             }
 
             &__delete {
-                align-items: center;
-                cursor: pointer;
-                display: flex;
-                height: 3.2rem;
-                justify-content: center;
-                width: 3.2rem;
+                @include popoverIcons(none, 3.2rem, 3.2rem);
 
                 @include desktop {
                     &:hover {
@@ -352,22 +407,12 @@
                 }
 
                 @include mobile {
-                    align-items: center;
-                    background-color: var(--brand-red-coral);
-                    display: flex;
-                    height: 100%;
-                    justify-content: center;
-                    width: 6rem;
+                    @include popoverIcons(var(--brand-red-coral), 100%, 6rem);
                 }
             }
 
             &__edit {
-                align-items: center;
-                cursor: pointer;
-                display: flex;
-                height: 3.2rem;
-                justify-content: center;
-                width: 3.2rem;
+                @include popoverIcons(none, 3.2rem, 3.2rem);
 
                 @include desktop {
                     &:hover {
@@ -376,12 +421,7 @@
                 }
 
                 @include mobile {
-                    align-items: center;
-                    background-color: var(--status-info);
-                    display: flex;
-                    height: 100%;
-                    justify-content: center;
-                    width: 6rem;
+                    @include popoverIcons(var(--status-info), 100%, 6rem);
                 }
             }
         }
@@ -620,7 +660,7 @@
     }
 
     &--border {
-        .dc-input {
+        .dc-input__container {
             border: 1px dashed var(--border-normal);
         }
     }
@@ -702,6 +742,9 @@
 }
 
 .p2p-my-ads__modal-error {
+    &--form {
+        height: fit-content !important;
+    }
     .dc-modal-header__title--p2p-my-ads__modal-error {
         padding: 2.4rem 2.4rem 0 !important;
     }

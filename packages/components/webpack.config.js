@@ -18,6 +18,7 @@ module.exports = function () {
             alias: {
                 Components: path.resolve(__dirname, 'src', 'components'),
             },
+            extensions: ['.js', '.jsx', '.ts', '.tsx'],
         },
         optimization: {
             minimize: true,
@@ -74,8 +75,7 @@ module.exports = function () {
                 formik: 'formik',
                 classnames: 'classnames',
                 'react-div-100vh': 'react-div-100vh',
-                'react-drag-drawer': 'react-drag-drawer',
-                'react-pose': 'react-pose',
+                'framer-motion': 'framer-motion',
                 'babel-polyfill': 'babel-polyfill',
                 'prop-types': 'prop-types',
                 'react-transition-group': 'react-transition-group',
@@ -84,12 +84,13 @@ module.exports = function () {
                 'react-dom': 'react-dom',
                 'react-dropzone': 'react-dropzone',
                 '@deriv/shared': '@deriv/shared',
+                '@deriv/translations': '@deriv/translations',
                 'react-router-dom': 'react-router-dom',
                 'react-swipeable': 'react-swipeable',
                 'react-tiny-popover': 'react-tiny-popover',
-                'react-window': 'react-window',
             },
             /^@deriv\/shared\/.+$/,
+            /^@deriv\/translations\/.+$/,
         ],
     };
 };

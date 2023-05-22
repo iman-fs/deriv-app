@@ -4,27 +4,21 @@ import { Button } from '@deriv/components';
 import { observer } from 'mobx-react-lite';
 import { Localize } from 'Components/i18next';
 import { useStores } from 'Stores';
-import OrderDetailsCancelModal from './order-details-cancel-modal.jsx';
 import OrderDetailsComplainModal from './order-details-complain-modal.jsx';
-import OrderDetailsConfirmModal from './order-details-confirm-modal.jsx';
 
 const OrderDetailsFooter = observer(() => {
-    const { order_store } = useStores();
+    const { general_store, order_store } = useStores();
     const {
-        is_buy_order,
-        is_my_ad,
-        is_sell_order,
+        id,
+        is_buy_order_for_user,
         should_show_cancel_and_paid_button,
         should_show_complain_and_received_button,
         should_show_only_received_button,
         should_show_only_complain_button,
+        chat_channel_url,
     } = order_store.order_information;
 
-    const is_buy_order_for_user = (is_buy_order && !is_my_ad) || (is_sell_order && is_my_ad);
-
-    const [should_show_cancel_modal, setShouldShowCancelModal] = React.useState(false);
     const [should_show_complain_modal, setShouldShowComplainModal] = React.useState(false);
-    const [should_show_confirm_modal, setShouldShowConfirmModal] = React.useState(false);
 
     React.useEffect(() => {
         const website_status = setInterval(() => {
@@ -36,16 +30,20 @@ const OrderDetailsFooter = observer(() => {
         };
     });
 
-    const hideCancelOrderModal = () => setShouldShowCancelModal(false);
     const showCancelOrderModal = () => {
-        order_store.getAdvertiserInfo(setShouldShowCancelModal);
+        order_store.getWebsiteStatus(true);
     };
 
     const hideComplainOrderModal = () => setShouldShowComplainModal(false);
     const showComplainOrderModal = () => setShouldShowComplainModal(true);
 
-    const hideConfirmOrderModal = () => setShouldShowConfirmModal(false);
-    const showConfirmOrderModal = () => setShouldShowConfirmModal(true);
+    const showConfirmOrderModal = () => {
+        if (is_buy_order_for_user) {
+            general_store.showModal({ key: 'OrderDetailsConfirmModal', props: {} });
+        } else {
+            order_store.confirmOrderRequest(id);
+        }
+    };
 
     if (should_show_cancel_and_paid_button) {
         return (
@@ -53,26 +51,15 @@ const OrderDetailsFooter = observer(() => {
                 <div className='order-details-card__footer'>
                     <div className='order-details-card__footer--right'>
                         <Button.Group>
-                            <Button large secondary onClick={showCancelOrderModal}>
+                            <Button large secondary onClick={showCancelOrderModal} is_disabled={!chat_channel_url}>
                                 <Localize i18n_default_text='Cancel order' />
                             </Button>
-                            <Button large primary onClick={showConfirmOrderModal}>
+                            <Button large primary onClick={showConfirmOrderModal} is_disabled={!chat_channel_url}>
                                 <Localize i18n_default_text="I've paid" />
                             </Button>
                         </Button.Group>
                     </div>
                 </div>
-                <OrderDetailsCancelModal
-                    hideCancelOrderModal={hideCancelOrderModal}
-                    order_id={order_store.order_information.id}
-                    should_show_cancel_modal={should_show_cancel_modal}
-                />
-                <OrderDetailsConfirmModal
-                    hideConfirmOrderModal={hideConfirmOrderModal}
-                    is_buy_order_for_user={is_buy_order_for_user}
-                    order_information={order_store.order_information}
-                    should_show_confirm_modal={should_show_confirm_modal}
-                />
             </React.Fragment>
         );
     }
@@ -97,12 +84,6 @@ const OrderDetailsFooter = observer(() => {
                     is_buy_order_for_user={is_buy_order_for_user}
                     hideComplainOrderModal={hideComplainOrderModal}
                     should_show_complain_modal={should_show_complain_modal}
-                />
-                <OrderDetailsConfirmModal
-                    order_information={order_store.order_information}
-                    is_buy_order_for_user={is_buy_order_for_user}
-                    hideConfirmOrderModal={hideConfirmOrderModal}
-                    should_show_confirm_modal={should_show_confirm_modal}
                 />
             </React.Fragment>
         );
@@ -138,12 +119,6 @@ const OrderDetailsFooter = observer(() => {
                         </Button>
                     </div>
                 </div>
-                <OrderDetailsConfirmModal
-                    order_information={order_store.order_information}
-                    is_buy_order_for_user={is_buy_order_for_user}
-                    hideConfirmOrderModal={hideConfirmOrderModal}
-                    should_show_confirm_modal={should_show_confirm_modal}
-                />
             </React.Fragment>
         );
     }

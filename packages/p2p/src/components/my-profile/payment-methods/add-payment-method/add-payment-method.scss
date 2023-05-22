@@ -16,6 +16,14 @@
         display: none;
     }
 
+    &-select {
+        height: 30vh;
+
+        @include mobile {
+            height: 100%;
+        }
+    }
+
     &-hint {
         padding: 0.2rem 0 0 1.6rem;
     }
@@ -37,11 +45,19 @@
                 justify-content: flex-end;
                 margin-top: auto;
                 padding: 1.6rem 2.4rem;
+
+                &-profile {
+                    padding: 0 2.4rem 2rem;
+                }
             }
         }
 
         &__form-wrapper {
             padding: 1.4rem 2.4rem;
+
+            .dc-input {
+                margin-bottom: 4rem;
+            }
 
             .dc-input--error {
                 margin-bottom: 6rem;
@@ -59,7 +75,21 @@
         }
 
         &__payment-method-field {
-            margin: 3.8rem 0;
+            &--text-area {
+                height: auto;
+
+                & .dc-input {
+                    &__container {
+                        height: 9.6rem;
+                    }
+
+                    &__field {
+                        height: 100% !important;
+                        padding-left: 0;
+                        padding-right: 0;
+                    }
+                }
+            }
         }
     }
 }

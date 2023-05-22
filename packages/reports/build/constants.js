@@ -28,13 +28,14 @@ const ALIASES = {
     Modules: path.resolve(__dirname, '../src/Modules'),
     Sass: path.resolve(__dirname, '../src/sass'),
     Stores: path.resolve(__dirname, '../src/Stores'),
+    Types: path.resolve(__dirname, '../src/Types'),
 };
 
-const rules = (is_test_env = false, is_mocha_only = false) => [
-    ...(is_test_env && !is_mocha_only
+const rules = (is_test_env = false) => [
+    ...(is_test_env
         ? [
               {
-                  test: /\.(js|jsx)$/,
+                  test: /\.(js|jsx|ts|tsx)$/,
                   exclude: /node_modules|__tests__|(build\/.*\.js$)|(_common\/lib)/,
                   include: /src/,
                   loader: 'eslint-loader',
@@ -108,7 +109,7 @@ const MINIMIZERS = !IS_RELEASE
           new CssMinimizerPlugin(),
       ];
 
-const plugins = (base, is_test_env, is_mocha_only) => [
+const plugins = (base, is_test_env) => [
     new CleanWebpackPlugin(),
     new IgnorePlugin({ resourceRegExp: /^\.\/locale$/, contextRegExp: /moment$/ }),
     new MiniCssExtractPlugin(cssConfig()),
@@ -121,7 +122,7 @@ const plugins = (base, is_test_env, is_mocha_only) => [
                   filter: file => file.name !== 'CNAME',
               }),
           ]),
-    ...(is_test_env && !is_mocha_only
+    ...(is_test_env
         ? [new StylelintPlugin(stylelintConfig())]
         : [
               // ...(!IS_RELEASE ? [ new BundleAnalyzerPlugin({ analyzerMode: 'static' }) ] : []),

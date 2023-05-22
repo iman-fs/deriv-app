@@ -23,7 +23,7 @@ const TableRow = ({
 }) => {
     const action_columns = getActionColumns && getActionColumns({ row_obj, is_header, is_footer });
 
-    const cells = columns.map(({ col_index, renderCellContent, title, key }) => {
+    const cells = columns?.map(({ col_index, renderCellContent, title, key }) => {
         let cell_content = title;
         if (!is_header) {
             const cell_value = row_obj[col_index] || '';
@@ -93,6 +93,9 @@ TableRow.propTypes = {
     to: PropTypes.string,
     content_loader: PropTypes.elementType,
     measure: PropTypes.func,
+    getActionColumns: PropTypes.func,
+    show_preloader: PropTypes.bool,
+    is_dynamic_height: PropTypes.bool,
 };
 
 export default TableRow;

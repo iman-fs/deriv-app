@@ -45,10 +45,10 @@
         }
         .dc-input {
             &__label {
-                top: 0.9rem;
+                top: 1rem;
             }
             label {
-                top: 0.9rem;
+                top: 1rem;
                 background-color: var(--general-main-2);
                 @include mobile {
                     background-color: var(--fill-normal);
@@ -152,6 +152,21 @@
             width: unset;
             margin: 0 2.4rem;
             line-height: 20px;
+        }
+
+        .cfd-personal-details-modal__form & {
+            margin: 0 auto;
+            width: unset;
+            padding-top: 3.2rem;
+        }
+    }
+}
+
+.financial-assessment {
+    gap: 1.6rem;
+    &__form {
+        @include desktop {
+            width: 70%;
         }
     }
 }

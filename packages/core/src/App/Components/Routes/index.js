@@ -1,4 +1,8 @@
-export BinaryLink from './binary-link.jsx';
-export default from './binary-routes.jsx';
+import BinaryLink from './binary-link.jsx';
+import LanguageLink from './language-link';
+import RouteWithSubRoutes from './route-with-sub-routes.jsx';
+import BinaryRoutes from './binary-routes.jsx';
+
 export * from './helpers';
-export RouteWithSubRoutes from './route-with-sub-routes.jsx';
+export { BinaryLink, LanguageLink, RouteWithSubRoutes };
+export default BinaryRoutes;

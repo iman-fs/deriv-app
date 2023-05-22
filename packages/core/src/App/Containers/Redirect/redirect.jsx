@@ -28,7 +28,6 @@ const Redirect = ({
     const code_param = url_params.get('code') || verification_code[action_param];
 
     setVerificationCode(code_param, action_param);
-
     setNewEmail(url_params.get('email'), action_param);
 
     switch (action_param) {
@@ -40,8 +39,14 @@ const Redirect = ({
                 //     search: url_query_string,
                 // });
                 // redirected_to_route = true;
+            } else {
+                history.push({
+                    pathname: routes.onboarding,
+                    search: url_query_string,
+                });
             }
             sessionStorage.removeItem('redirect_url');
+            redirected_to_route = true;
             toggleAccountSignupModal(true);
             break;
         }
@@ -51,6 +56,10 @@ const Redirect = ({
         }
         case 'request_email': {
             toggleResetEmailModal(true);
+            break;
+        }
+        case 'social_email_change': {
+            toggleResetPasswordModal(true);
             break;
         }
         case 'system_email_change': {
@@ -130,18 +139,39 @@ const Redirect = ({
             }
             break;
         }
+        case 'add_account_multiplier': {
+            WS.wait('get_account_status').then(() => {
+                if (!currency) return openRealAccountSignup('set_currency');
+                return openRealAccountSignup('maltainvest');
+            });
+            const ext_platform_url = url_params.get('ext_platform_url');
+            if (ext_platform_url) {
+                history.push(`${routes.root}?ext_platform_url=${ext_platform_url}`);
+                redirected_to_route = true;
+            }
+            break;
+        }
         case 'verification': {
             // Removing this will break mobile DP2P app. Do not remove.
             sessionStorage.setItem('redirect_url', routes.cashier_p2p_verification);
-            window.location.href = loginUrl({
+            const new_href = loginUrl({
                 language: getLanguage(),
             });
+            window.location.href = new_href;
             break;
         }
         case 'trading_platform_investor_password_reset': {
             localStorage.setItem('cfd_reset_password_code', code_param);
             const is_demo = localStorage.getItem('cfd_reset_password_intent')?.includes('demo');
             history.push(`${routes.mt5}#${is_demo ? 'demo' : 'real'}#reset-password`);
+            redirected_to_route = true;
+            break;
+        }
+        case 'p2p_order_confirm': {
+            history.push({
+                pathname: routes.cashier_p2p,
+                search: url_query_string,
+            });
             redirected_to_route = true;
             break;
         }
@@ -161,21 +191,27 @@ const Redirect = ({
 };
 
 Redirect.propTypes = {
+    currency: PropTypes.string,
+    loginid: PropTypes.string,
     getServerTime: PropTypes.object,
+    hasAnyRealAccount: PropTypes.bool,
     history: PropTypes.object,
+    openRealAccountSignup: PropTypes.func,
     setResetTradingPasswordModalOpen: PropTypes.func,
     setVerificationCode: PropTypes.func,
-    verification_code: PropTypes.object,
+    setNewEmail: PropTypes.func,
     toggleAccountSignupModal: PropTypes.func,
     toggleResetPasswordModal: PropTypes.func,
-    setNewEmail: PropTypes.func,
     toggleResetEmailModal: PropTypes.func,
     toggleUpdateEmailModal: PropTypes.func,
+    verification_code: PropTypes.object,
 };
 
 export default withRouter(
     connect(({ client, ui }) => ({
         currency: client.currency,
+        loginid: client.loginid,
+        is_eu: client.is_eu,
         setVerificationCode: client.setVerificationCode,
         verification_code: client.verification_code,
         fetchResidenceList: client.fetchResidenceList,

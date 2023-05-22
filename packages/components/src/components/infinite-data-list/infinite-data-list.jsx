@@ -1,7 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import InfiniteLoader from 'react-virtualized/dist/es/InfiniteLoader';
-import DataList from '../data-list/data-list.jsx';
+import { InfiniteLoader } from 'react-virtualized';
+import DataList from '../data-list/data-list';
 
 const InfiniteDataList = ({
     className,
@@ -57,6 +57,9 @@ InfiniteDataList.propTypes = {
     loadMoreRowsFn: PropTypes.func.isRequired,
     onScroll: PropTypes.func,
     rowRenderer: PropTypes.func.isRequired,
+    has_filler: PropTypes.bool,
+    overscanRowCount: PropTypes.number,
+    getRowSize: PropTypes.func,
 };
 
 export default InfiniteDataList;

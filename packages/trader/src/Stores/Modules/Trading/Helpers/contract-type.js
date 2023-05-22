@@ -36,10 +36,8 @@ export const ContractType = (() => {
             if (!has_contracts || has_only_forward_starting_contracts) return;
             const contract_categories = getContractCategoriesConfig();
             contract_types = getContractTypesConfig(symbol);
-
             available_contract_types = {};
             available_categories = cloneObject(contract_categories); // To preserve the order (will clean the extra items later in this function)
-
             r.contracts_for.available.forEach(contract => {
                 const type = Object.keys(contract_types).find(
                     key =>
@@ -50,61 +48,14 @@ export const ContractType = (() => {
 
                 if (!type) return; // ignore unsupported contract types
 
-                /*
-            add to this config if a value you are looking for does not exist yet
-            accordingly create a function to retrieve the value
-            config: {
-                has_spot: 1,
-                durations: {
-                    min_max: {
-                        spot: {
-                            tick    : { min: 5,     max: 10 },    // value in ticks, as cannot convert to seconds
-                            intraday: { min: 18000, max: 86400 }, // all values converted to seconds
-                            daily   : { min: 86400, max: 432000 },
-                        },
-                        forward: {
-                            intraday: { min: 18000, max: 86400 },
-                        },
-                    },
-                    units_display: {
-                        spot: [
-                            { text: 'ticks',   value: 't' },
-                            { text: 'seconds', value: 's' },
-                            { text: 'minutes', value: 'm' },
-                            { text: 'hours',   value: 'h' },
-                            { text: 'days',    value: 'd' },
-                        ],
-                        forward: [
-                            { text: 'days',    value: 'd' },
-                        ],
-                    },
-                },
-                forward_starting_dates: [
-                    { text: 'Mon - 19 Mar, 2018', value: 1517356800, sessions: [{ open: obj_moment, close: obj_moment }] },
-                    { text: 'Tue - 20 Mar, 2018', value: 1517443200, sessions: [{ open: obj_moment, close: obj_moment }] },
-                    { text: 'Wed - 21 Mar, 2018', value: 1517529600, sessions: [{ open: obj_moment, close: obj_moment }] },
-                ],
-                trade_types: {
-                    'CALL': 'Higher',
-                    'PUT' : 'Lower',
-                },
-                barriers: {
-                    count   : 2,
-                    tick    : { high_barrier: '+1.12', low_barrier : '-1.12' },
-                    intraday: { high_barrier: '+2.12', low_barrier : '-2.12' },
-                    daily   : { high_barrier: 1111,    low_barrier : 1093 },
-                },
-            }
-            */
-
                 if (!available_contract_types[type]) {
                     // extend contract_categories to include what is needed to create the contract list
                     const sub_cats =
                         available_categories[
                             Object.keys(available_categories).find(
-                                key => available_categories[key].indexOf(type) !== -1
+                                key => available_categories[key].categories.indexOf(type) !== -1
                             )
-                        ];
+                        ].categories;
 
                     if (!sub_cats) return;
 
@@ -121,6 +72,7 @@ export const ContractType = (() => {
                 config.trade_types = buildTradeTypesConfig(contract, config.trade_types);
                 config.barriers = buildBarriersConfig(contract, config.barriers);
                 config.forward_starting_dates = buildForwardStartingConfig(contract, config.forward_starting_dates);
+                config.growth_rate_range = contract.growth_rate_range;
                 config.multiplier_range = contract.multiplier_range;
                 config.cancellation_range = contract.cancellation_range;
 
@@ -129,8 +81,10 @@ export const ContractType = (() => {
 
             // cleanup categories
             Object.keys(available_categories).forEach(key => {
-                available_categories[key] = available_categories[key].filter(item => typeof item === 'object');
-                if (available_categories[key].length === 0) {
+                available_categories[key].categories = available_categories[key].categories?.filter(
+                    item => typeof item === 'object'
+                );
+                if (available_categories[key].categories?.length === 0) {
                     delete available_categories[key];
                 }
             });
@@ -170,6 +124,7 @@ export const ContractType = (() => {
         const obj_duration_units_list = getDurationUnitsList(contract_type, obj_start_type.contract_start_type);
         const obj_duration_units_min_max = getDurationMinMax(contract_type, obj_start_type.contract_start_type);
 
+        const obj_accumulator_range_list = getAccumulatorRange(contract_type);
         const obj_multiplier_range_list = getMultiplierRange(contract_type, multiplier);
         const obj_cancellation = getCancellation(contract_type, cancellation_duration, symbol);
         const obj_expiry_type = getExpiryType(obj_duration_units_list, expiry_type);
@@ -186,6 +141,7 @@ export const ContractType = (() => {
             ...obj_duration_units_list,
             ...obj_duration_units_min_max,
             ...obj_expiry_type,
+            ...obj_accumulator_range_list,
             ...obj_multiplier_range_list,
             ...obj_cancellation,
             ...obj_equal,
@@ -194,7 +150,7 @@ export const ContractType = (() => {
 
     const getContractType = (list, contract_type) => {
         const arr_list = Object.keys(list || {})
-            .reduce((k, l) => [...k, ...list[l].map(ct => ct.value)], [])
+            .reduce((k, l) => [...k, ...list[l].categories.map(ct => ct.value)], [])
             .filter(type => unsupported_contract_types_list.indexOf(type) === -1)
             .sort((a, b) => (a === 'multiplier' || b === 'multiplier' ? -1 : 0));
 
@@ -204,30 +160,38 @@ export const ContractType = (() => {
     };
 
     const getComponents = c_type => {
+        let check = [];
+        if (contract_types[c_type]?.config?.should_override) {
+            check = [...contract_types[c_type].components];
+        } else {
+            check = ['duration', 'amount', ...contract_types[c_type].components].filter(
+                component =>
+                    !(
+                        component === 'duration' &&
+                        contract_types[c_type].config &&
+                        contract_types[c_type].config.hide_duration
+                    )
+            );
+        }
         return (
             contract_types && {
-                form_components: ['duration', 'amount', ...contract_types[c_type].components].filter(
-                    component =>
-                        !(
-                            component === 'duration' &&
-                            contract_types[c_type].config &&
-                            contract_types[c_type].config.hide_duration
-                        )
-                ),
+                form_components: check,
             }
         );
     };
 
-    const getDurationUnitsList = (contract_type, contract_start_type) => ({
-        duration_units_list:
-            getPropertyValue(available_contract_types, [
-                contract_type,
-                'config',
-                'durations',
-                'units_display',
-                contract_start_type,
-            ]) || [],
-    });
+    const getDurationUnitsList = (contract_type, contract_start_type) => {
+        return {
+            duration_units_list:
+                getPropertyValue(available_contract_types, [
+                    contract_type,
+                    'config',
+                    'durations',
+                    'units_display',
+                    contract_start_type,
+                ]) || [],
+        };
+    };
 
     const getDurationUnit = (duration_unit, contract_type, contract_start_type) => {
         const duration_units =
@@ -532,6 +496,11 @@ export const ContractType = (() => {
             basis: getArrayDefaultValue(arr_basis, basis),
         };
     };
+
+    const getAccumulatorRange = contract_type => ({
+        accumulator_range_list:
+            getPropertyValue(available_contract_types, [contract_type, 'config', 'growth_rate_range']) || [],
+    });
 
     const getMultiplierRange = (contract_type, multiplier) => {
         const arr_multiplier =

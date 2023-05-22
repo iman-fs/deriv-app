@@ -1,9 +1,9 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import classNames from 'classnames';
 import { DesktopWrapper, Div100vhContainer, MobileWrapper, SwipeableWrapper } from '@deriv/components';
 import { isDesktop, isMobile } from '@deriv/shared';
 import ChartLoader from 'App/Components/Elements/chart-loader.jsx';
-import { isDigitTradeType } from 'Modules/Trading/Helpers/digits';
 import { connect } from 'Stores/connect';
 import PositionsDrawer from 'App/Components/Elements/PositionsDrawer';
 import MarketIsClosedOverlay from 'App/Components/Elements/market-is-closed-overlay.jsx';
@@ -11,6 +11,7 @@ import Test from './test.jsx';
 import { ChartBottomWidgets, ChartTopWidgets, DigitsWidget } from './chart-widgets.jsx';
 import FormLayout from '../Components/Form/form-layout.jsx';
 import AllMarkers from '../../SmartChart/Components/all-markers.jsx';
+import AccumulatorsChartElements from '../../SmartChart/Components/Markers/accumulators-chart-elements.jsx';
 import ToolbarWidgets from '../../SmartChart/Components/toolbar-widgets.jsx';
 
 const BottomWidgetsMobile = ({ tick, digits, setTick, setDigits }) => {
@@ -29,7 +30,6 @@ const BottomWidgetsMobile = ({ tick, digits, setTick, setDigits }) => {
 };
 
 const Trade = ({
-    contract_type,
     form_components,
     getFirstOpenMarket,
     should_show_active_symbols_loading,
@@ -39,6 +39,7 @@ const Trade = ({
     is_market_closed,
     is_market_unavailable_visible,
     is_trade_enabled,
+    is_virtual,
     network_status,
     NotificationMessages,
     onChange,
@@ -47,10 +48,13 @@ const Trade = ({
     prepareTradeStore,
     setContractTypes,
     setMobileDigitView,
+    is_accumulator,
     show_digits_stats,
     should_show_multipliers_onboarding,
     symbol,
     is_synthetics_available,
+    is_synthetics_trading_market_available,
+    is_vanilla,
 }) => {
     const [digits, setDigits] = React.useState([]);
     const [tick, setTick] = React.useState({});
@@ -59,10 +63,11 @@ const Trade = ({
     const [category, setCategory] = React.useState(null);
     const [subcategory, setSubcategory] = React.useState(null);
     const [is_digits_widget_active, setIsDigitsWidgetActive] = React.useState(false);
+    const charts_ref = React.useRef();
 
     const open_market = React.useMemo(() => {
         if (try_synthetic_indices) {
-            return { category: 'synthetic_index' };
+            return { category: 'synthetics' };
         } else if (try_open_markets && category) {
             return { category, subcategory };
         }
@@ -126,10 +131,28 @@ const Trade = ({
         }
     };
 
+    const topWidgets = React.useCallback(
+        ({ ...params }) => (
+            <ChartTopWidgets
+                open_market={open_market}
+                open={try_synthetic_indices || try_open_markets}
+                charts_ref={charts_ref}
+                is_digits_widget_active={is_digits_widget_active}
+                {...params}
+            />
+        ),
+        [open_market, try_synthetic_indices, try_open_markets, charts_ref, is_digits_widget_active]
+    );
+
     const form_wrapper_class = isMobile() ? 'mobile-wrapper' : 'sidebar__container desktop-only';
 
     return (
-        <div id='trade_container' className='trade-container'>
+        <div
+            id='trade_container'
+            className={classNames('trade-container', {
+                'trade-container--accumulators': is_accumulator,
+            })}
+        >
             <DesktopWrapper>
                 <PositionsDrawer />
             </DesktopWrapper>
@@ -140,30 +163,24 @@ const Trade = ({
                 id='chart_container'
                 className='chart-container'
                 is_disabled={isDesktop()}
-                height_offset='259px'
+                height_offset={is_accumulator ? '295px' : '259px'}
             >
                 <NotificationMessages />
                 <React.Suspense
                     fallback={<ChartLoader is_dark={is_dark_theme} is_visible={!symbol || is_chart_loading} />}
                 >
                     <DesktopWrapper>
-                        <div className='chart-container__wrapper'>
+                        <div className={classNames('chart-container__wrapper', { 'vanilla-trade-chart': is_vanilla })}>
                             <ChartLoader is_visible={is_chart_loading || should_show_active_symbols_loading} />
                             <ChartTrade
-                                try_synthetic_indices={try_synthetic_indices}
-                                try_open_markets={try_open_markets}
-                                open_market={open_market}
+                                topWidgets={topWidgets}
+                                charts_ref={charts_ref}
+                                is_accumulator={is_accumulator}
                             />
                         </div>
                     </DesktopWrapper>
                     <MobileWrapper>
-                        <ChartLoader
-                            is_visible={
-                                is_chart_loading ||
-                                should_show_active_symbols_loading ||
-                                (isDigitTradeType(contract_type) && !digits[0])
-                            }
-                        />
+                        <ChartLoader is_visible={is_chart_loading || should_show_active_symbols_loading} />
                         <SwipeableWrapper
                             onChange={onChangeSwipeableIndex}
                             is_disabled={
@@ -173,14 +190,14 @@ const Trade = ({
                                 is_chart_loading ||
                                 should_show_active_symbols_loading
                             }
+                            className={classNames({ 'vanilla-trade-chart': is_vanilla })}
                         >
                             {show_digits_stats && <DigitsWidget digits={digits} tick={tick} />}
                             <ChartTrade
+                                topWidgets={topWidgets}
+                                charts_ref={charts_ref}
                                 bottomWidgets={show_digits_stats ? bottomWidgets : undefined}
-                                is_digits_widget_active={show_digits_stats ? is_digits_widget_active : undefined}
-                                try_synthetic_indices={try_synthetic_indices}
-                                try_open_markets={try_open_markets}
-                                open_market={open_market}
+                                is_accumulator={is_accumulator}
                             />
                         </SwipeableWrapper>
                     </MobileWrapper>
@@ -193,8 +210,8 @@ const Trade = ({
                 {is_market_closed && !is_market_unavailable_visible && (
                     <MarketIsClosedOverlay
                         is_eu={is_eu}
-                        is_synthetics_available={is_synthetics_available}
-                        {...(is_eu && category && { is_market_available: true })}
+                        is_synthetics_trading_market_available={is_synthetics_trading_market_available}
+                        {...(is_eu && category)}
                         onClick={onTryOtherMarkets}
                         onMarketOpen={prepareTradeStore}
                         symbol={symbol}
@@ -203,7 +220,11 @@ const Trade = ({
                 <FormLayout
                     is_market_closed={is_market_closed}
                     is_trade_enabled={
-                        is_trade_enabled && form_components.length > 0 && network_status.class === 'online'
+                        is_trade_enabled &&
+                        form_components.length > 0 &&
+                        network_status.class === 'online' &&
+                        // TODO: delete the below line for releasing ACCU trade for real
+                        (is_virtual || !form_components.includes('accumulator'))
                     }
                 />
             </div>
@@ -213,8 +234,11 @@ const Trade = ({
 
 export default connect(({ client, common, modules, ui }) => ({
     getFirstOpenMarket: modules.trade.getFirstOpenMarket,
+    is_accumulator: modules.trade.is_accumulator,
     is_eu: client.is_eu,
+    is_virtual: client.is_virtual,
     is_synthetics_available: modules.trade.is_synthetics_available,
+    is_synthetics_trading_market_available: modules.trade.is_synthetics_trading_market_available,
     network_status: common.network_status,
     contract_type: modules.trade.contract_type,
     form_components: modules.trade.form_components,
@@ -234,6 +258,7 @@ export default connect(({ client, common, modules, ui }) => ({
     should_show_multipliers_onboarding: ui.should_show_multipliers_onboarding,
     onChange: modules.trade.onChange,
     setContractTypes: modules.trade.setContractTypes,
+    is_vanilla: modules.trade.is_vanilla,
 }))(Trade);
 
 // CHART (ChartTrade)--------------------------------------------------------
@@ -269,6 +294,10 @@ const ChartMarkers = connect(({ ui, client, contract_trade }) => ({
 
 const Chart = props => {
     const {
+        accumulator_barriers_data,
+        all_positions,
+        topWidgets,
+        charts_ref,
         updateGranularity,
         updateChartType,
         active_symbols,
@@ -280,13 +309,16 @@ const Chart = props => {
         end_epoch,
         granularity,
         has_alternative_source,
+        is_accumulator,
         is_trade_enabled,
         is_socket_opened,
         main_barrier,
         refToAddTick,
         setChartStatus,
         settings,
+        should_show_eu_content,
         show_digits_stats,
+        should_highlight_current_spot,
         symbol,
         wsForget,
         wsForgetStream,
@@ -294,30 +326,14 @@ const Chart = props => {
         wsSubscribe,
     } = props;
 
-    const charts_ref = React.useRef();
-    const props_ref = React.useRef();
-    props_ref.current = props;
+    const { current_spot, current_spot_time } = accumulator_barriers_data[symbol] || {};
 
     const bottomWidgets = React.useCallback(
-        ({ digits, tick }) => <ChartBottomWidgets digits={digits} tick={tick} />,
-        []
+        ({ digits, tick }) => (
+            <ChartBottomWidgets digits={digits} tick={tick} show_accumulators_stats={is_accumulator} is_trade_page />
+        ),
+        [is_accumulator]
     );
-
-    const topWidgets = React.useCallback(({ ...params }) => {
-        // changing reference of topWidgets function by adding dependencies to useCallback results in Smartcharts performance drop.
-        // so, using props_ref to get current props value
-        const { is_digits_widget_active, try_synthetic_indices, try_open_markets, open_market } = props_ref.current;
-
-        return (
-            <ChartTopWidgets
-                open_market={open_market}
-                open={try_synthetic_indices || try_open_markets}
-                charts_ref={charts_ref}
-                is_digits_widget_active={is_digits_widget_active}
-                {...params}
-            />
-        );
-    }, []);
 
     const getMarketsOrder = active_symbols => {
         const synthetic_index = 'synthetic_index';
@@ -347,7 +363,7 @@ const Chart = props => {
         <SmartChartWithRef
             ref={charts_ref}
             barriers={barriers}
-            bottomWidgets={show_digits_stats && isDesktop() ? bottomWidgets : props.bottomWidgets}
+            bottomWidgets={(is_accumulator || show_digits_stats) && isDesktop() ? bottomWidgets : props.bottomWidgets}
             crosshair={isMobile() ? 0 : undefined}
             crosshairTooltipLeftAllow={560}
             showLastDigitStats={isDesktop() ? show_digits_stats : false}
@@ -368,12 +384,14 @@ const Chart = props => {
             id='trade'
             isMobile={isMobile()}
             maxTick={isMobile() ? max_ticks : undefined}
-            granularity={granularity}
+            granularity={show_digits_stats || is_accumulator ? 0 : granularity}
             requestAPI={wsSendRequest}
             requestForget={wsForget}
             requestForgetStream={wsForgetStream}
             requestSubscribe={wsSubscribe}
             settings={settings}
+            should_show_eu_content={should_show_eu_content}
+            allowTickChartTypeOnly={show_digits_stats || is_accumulator}
             stateChangeListener={chartStateChange}
             symbol={symbol}
             topWidgets={is_trade_enabled ? topWidgets : null}
@@ -393,11 +411,24 @@ const Chart = props => {
             }}
         >
             <ChartMarkers />
+            {is_accumulator && (
+                <AccumulatorsChartElements
+                    all_positions={all_positions}
+                    current_symbol_spot={current_spot}
+                    current_symbol_spot_time={current_spot_time}
+                    should_highlight_current_spot={should_highlight_current_spot}
+                    symbol={symbol}
+                />
+            )}
         </SmartChartWithRef>
     );
 };
 
 Chart.propTypes = {
+    accumulator_barriers_data: PropTypes.object,
+    all_positions: PropTypes.array,
+    topWidgets: PropTypes.func,
+    charts_ref: PropTypes.object,
     bottomWidgets: PropTypes.func,
     chart_type: PropTypes.string,
     chart_layout: PropTypes.any,
@@ -405,7 +436,7 @@ Chart.propTypes = {
     exportLayout: PropTypes.func,
     end_epoch: PropTypes.number,
     granularity: PropTypes.number,
-    is_digits_widget_active: PropTypes.bool,
+    is_accumulator: PropTypes.bool,
     is_trade_enabled: PropTypes.bool,
     is_socket_opened: PropTypes.bool,
     has_alternative_source: PropTypes.bool,
@@ -413,15 +444,18 @@ Chart.propTypes = {
     refToAddTick: PropTypes.func,
     setChartStatus: PropTypes.func,
     settings: PropTypes.object,
+    should_show_eu_content: PropTypes.bool,
+    should_highlight_current_spot: PropTypes.bool,
     symbol: PropTypes.string,
-    try_synthetic_indices: PropTypes.bool,
     wsForget: PropTypes.func,
     wsForgetStream: PropTypes.func,
     wsSendRequest: PropTypes.func,
     wsSubscribe: PropTypes.func,
 };
 
-const ChartTrade = connect(({ modules, ui, common, contract_trade }) => ({
+const ChartTrade = connect(({ client, modules, ui, common, contract_trade, portfolio }) => ({
+    accumulator_barriers_data: contract_trade.accumulator_barriers_data,
+    all_positions: portfolio.all_positions,
     is_socket_opened: common.is_socket_opened,
     granularity: contract_trade.granularity,
     chart_type: contract_trade.chart_type,
@@ -440,10 +474,13 @@ const ChartTrade = connect(({ modules, ui, common, contract_trade }) => ({
         is_digit_contract: contract_trade.last_contract.is_digit_contract,
         is_ended: contract_trade.last_contract.is_ended,
     },
+    is_accumulator: modules.trade.is_accumulator,
     is_trade_enabled: modules.trade.is_trade_enabled,
     main_barrier: modules.trade.main_barrier_flattened,
     extra_barriers: modules.trade.barriers_flattened,
+    should_show_eu_content: client.should_show_eu_content,
     show_digits_stats: modules.trade.show_digits_stats,
+    should_highlight_current_spot: contract_trade.should_highlight_current_spot,
     contract_type: modules.trade.contract_type,
     symbol: modules.trade.symbol,
     exportLayout: modules.trade.exportLayout,

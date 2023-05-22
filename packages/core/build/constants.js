@@ -13,7 +13,7 @@ const TerserPlugin = require('terser-webpack-plugin');
 // const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 const { WebpackManifestPlugin } = require('webpack-manifest-plugin');
 const { GenerateSW } = require('workbox-webpack-plugin');
-const DefinePlugin = require('webpack').DefinePlugin;
+const webpack = require('webpack');
 
 const {
     copyConfig,
@@ -32,6 +32,8 @@ const {
     svg_file_loaders,
     svg_loaders,
 } = require('./loaders-config');
+const Dotenv = require('dotenv-webpack');
+const { DefinePlugin } = require('webpack');
 
 const IS_RELEASE = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
 
@@ -85,7 +87,7 @@ const rules = (is_test_env = false) => [
         use: html_loaders,
     },
     {
-        test: /\.(png|jpg|gif|woff|woff2|eot|ttf|otf)$/,
+        test: /\.(png|jpg|gif|woff|woff2|eot|ttf|otf|pdf)$/,
         exclude: /node_modules/,
         use: file_loaders,
     },
@@ -122,16 +124,18 @@ const MINIMIZERS = !IS_RELEASE
           new CssMinimizerPlugin(),
       ];
 
-const plugins = ({ base, is_test_env, env }) => {
-    let is_qawolf = false;
-
-    if (env.IS_QAWOLF) {
-        is_qawolf = !!JSON.parse(env.IS_QAWOLF);
-    }
-
+const plugins = ({ base, is_test_env }) => {
     return [
+        new Dotenv({}),
         new DefinePlugin({
-            'process.env.IS_QAWOLF': is_qawolf,
+            'process.env.DATADOG_APPLICATION_ID': JSON.stringify(process.env.DATADOG_APPLICATION_ID),
+            'process.env.DATADOG_CLIENT_TOKEN': JSON.stringify(process.env.DATADOG_CLIENT_TOKEN),
+            'process.env.DATADOG_SESSION_REPLAY_SAMPLE_RATE': JSON.stringify(
+                process.env.DATADOG_SESSION_REPLAY_SAMPLE_RATE
+            ),
+            'process.env.DATADOG_SESSION_SAMPLE_RATE': JSON.stringify(process.env.DATADOG_SESSION_SAMPLE_RATE),
+            'process.env.CIRCLE_TAG': JSON.stringify(process.env.CIRCLE_TAG),
+            'process.env.CIRCLE_JOB': JSON.stringify(process.env.CIRCLE_JOB),
         }),
         new CleanWebpackPlugin(),
         new CopyPlugin(copyConfig(base)),
@@ -140,11 +144,14 @@ const plugins = ({ base, is_test_env, env }) => {
         new PreloadWebpackPlugin(htmlPreloadConfig()),
         new IgnorePlugin({ resourceRegExp: /^\.\/locale$/, contextRegExp: /moment$/ }),
         new MiniCssExtractPlugin(cssConfig()),
+        new webpack.optimize.LimitChunkCountPlugin({
+            maxChunks: 10,
+        }),
         new CircularDependencyPlugin({ exclude: /node_modules/, failOnError: true }),
         ...(IS_RELEASE
             ? []
             : [new WebpackManifestPlugin({ fileName: 'asset-manifest.json', filter: file => file.name !== 'CNAME' })]),
-        ...(is_test_env && !env.mocha_only
+        ...(is_test_env
             ? [new StylelintPlugin(stylelintConfig())]
             : [
                   new GenerateSW(generateSWConfig(IS_RELEASE)),

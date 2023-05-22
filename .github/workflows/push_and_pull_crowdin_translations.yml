@@ -1,5 +1,13 @@
 name: Push and pull Crowdin translations
 
+permissions:
+  actions: write
+  checks: write
+  contents: write
+  deployments: write
+  pull-requests: write
+  statuses: write
+  
 on:
   workflow_dispatch:
   push:
@@ -12,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [14.x]
+        node-version: [16.x]
     steps:
       - name: Setup node
         uses: actions/setup-node@v2

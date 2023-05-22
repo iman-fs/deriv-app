@@ -3,11 +3,12 @@ import countries from 'i18n-iso-countries';
 import * as Cookies from 'js-cookie';
 import { init } from 'onfido-sdk-ui';
 import { Loading, Text, ThemedScrollbars } from '@deriv/components';
-import { isMobile, WS } from '@deriv/shared';
+import { isMobile, WS, routes } from '@deriv/shared';
 import { getLanguage, Localize } from '@deriv/translations';
 import ErrorMessage from 'Components/error-component';
 import getOnfidoPhrases from 'Constants/onfido-phrases';
 import MissingPersonalDetails from 'Components/poi/missing-personal-details';
+import { Link } from 'react-router-dom';
 
 const OnfidoSdkView = ({ country_code, documents_supported, handleViewComplete, height, is_from_external }) => {
     const [api_error, setAPIError] = React.useState();
@@ -15,6 +16,7 @@ const OnfidoSdkView = ({ country_code, documents_supported, handleViewComplete, 
     const [missing_personal_details, setMissingPersonalDetails] = React.useState(false);
     const [is_status_loading, setStatusLoading] = React.useState(true);
     const [retry_count, setRetryCount] = React.useState(0);
+    const token_timeout_ref = React.useRef();
 
     // IDV country code - Alpha ISO2. Onfido country code - Alpha ISO3
     // Ensures that any form of country code passed here is supported.
@@ -67,6 +69,7 @@ const OnfidoSdkView = ({ country_code, documents_supported, handleViewComplete, 
                 },
                 token: onfido_service_token,
                 useModal: false,
+                useMemoryHistory: true,
                 onComplete,
                 steps: [
                     {
@@ -87,6 +90,7 @@ const OnfidoSdkView = ({ country_code, documents_supported, handleViewComplete, 
                                       }
                                     : false,
                             },
+                            hideCountrySelection: true,
                         },
                     },
                     'face',
@@ -144,8 +148,7 @@ const OnfidoSdkView = ({ country_code, documents_supported, handleViewComplete, 
         }
     };
 
-    React.useEffect(() => {
-        // retry state will re-run the token fetching
+    const fetchServiceToken = () => {
         getOnfidoServiceToken().then(response_token => {
             if (response_token.error) {
                 handleError(response_token.error);
@@ -157,7 +160,20 @@ const OnfidoSdkView = ({ country_code, documents_supported, handleViewComplete, 
                     setStatusLoading(false);
                 });
             }
+            if (token_timeout_ref.current) clearTimeout(token_timeout_ref.current);
         });
+    };
+
+    React.useEffect(() => {
+        // retry state will re-run the token fetching
+        if (retry_count === 0) {
+            fetchServiceToken();
+        } else if (retry_count !== 0 && retry_count < 3) {
+            // Incorporating Exponential_backoff algo to prevent immediate throttling
+            token_timeout_ref.current = setTimeout(() => {
+                fetchServiceToken();
+            }, Math.pow(2, retry_count) + Math.random() * 1000);
+        }
     }, [getOnfidoServiceToken, initOnfido, retry_count]);
 
     let component_to_load;
@@ -184,7 +200,10 @@ const OnfidoSdkView = ({ country_code, documents_supported, handleViewComplete, 
                         <React.Fragment>
                             <div className='onfido-container__message'>
                                 <Text size='xs'>
-                                    <Localize i18n_default_text='Before uploading your document, please ensure that your personal details are updated to match your proof of identity. This will help to avoid delays during the verification process.' />
+                                    <Localize
+                                        i18n_default_text='Before uploading your document, please ensure that your <0>personal details</0> are updated to match your proof of identity. This will help to avoid delays during the verification process.'
+                                        components={[<Link to={routes.personal_details} key={0} className='link' />]}
+                                    />
                                 </Text>
                             </div>
                         </React.Fragment>

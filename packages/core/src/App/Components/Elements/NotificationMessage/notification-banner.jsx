@@ -4,11 +4,22 @@ import classNames from 'classnames';
 import { isMobile } from '@deriv/shared';
 import { Button, Icon, Text } from '@deriv/components';
 
-const NotificationBanner = ({ className, header, message, primary_btn, secondary_btn, img_src, img_alt, onClose }) => (
+const NotificationBanner = ({
+    className,
+    header,
+    message,
+    primary_btn,
+    secondary_btn,
+    img_src,
+    img_alt,
+    onClose,
+    icon,
+}) => (
     <div
         className={classNames('notification-banner', {
             [`notification-banner__${className}`]: className,
         })}
+        data-testid='dt_notification_banner'
     >
         <div className='notification-banner--left'>
             <Text as='h4' size={isMobile() ? 'xs' : 's'} weight='bold' className='notification-banner__title'>
@@ -35,12 +46,14 @@ const NotificationBanner = ({ className, header, message, primary_btn, secondary
         <div className='notification-banner--right'>
             <div className='notification-banner__bg' />
             <img className='notification-banner__img' src={img_src} alt={img_alt} />
-            <Icon className='notification-banner__close-icon' icon='IcCloseLight' onClick={onClose} />
+            <Icon className='notification-banner__close-icon' icon={icon ?? 'IcCloseLight'} onClick={onClose} />
         </div>
     </div>
 );
 
 NotificationBanner.propTypes = {
+    className: PropTypes.string,
+    secondary_btn: PropTypes.object,
     header: PropTypes.string,
     img_alt: PropTypes.string,
     img_src: PropTypes.string,
@@ -50,6 +63,7 @@ NotificationBanner.propTypes = {
         text: PropTypes.string,
         onClick: PropTypes.func,
     }),
+    icon: PropTypes.string,
 };
 
 export default NotificationBanner;

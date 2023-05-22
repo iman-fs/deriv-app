@@ -44,14 +44,6 @@ class PromiseClass {
     }
 }
 
-const copyToClipboard = text => {
-    const textField = document.createElement('textarea');
-    textField.innerText = text;
-    document.body.appendChild(textField);
-    textField.select();
-    document.execCommand('copy');
-    textField.remove();
-};
 // TODO: [duplicate_code] - Move this to shared package
 // eu countries to support
 const eu_countries = [
@@ -100,6 +92,13 @@ const isOptionsBlocked = country => blocked_options_countries.includes(country);
 const multipliers_only_countries = ['de', 'es', 'it', 'lu', 'gr', 'au', 'fr'];
 const isMultipliersOnly = country => multipliers_only_countries.includes(country);
 
+const getRegion = (landing_company_shortcode, residence) => {
+    if (landing_company_shortcode === 'virtual') {
+        return isEuCountry(residence) ? 'eu' : 'row';
+    }
+    return landing_company_shortcode === 'svg' ? 'row' : 'eu';
+};
+
 module.exports = {
     template,
     createElement,
@@ -109,5 +108,5 @@ module.exports = {
     isOptionsBlocked,
     isSyntheticsUnavailable,
     isMultipliersOnly,
-    copyToClipboard,
+    getRegion,
 };

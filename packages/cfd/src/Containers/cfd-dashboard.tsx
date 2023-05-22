@@ -1,7 +1,7 @@
 import React from 'react';
 import { RouteComponentProps, withRouter } from 'react-router';
-import { Redirect } from 'react-router-dom';
-import { DesktopWrapper, Icon, MobileWrapper, Tabs, PageError, Loading, Text } from '@deriv/components';
+import { Redirect, useHistory } from 'react-router-dom';
+import { Icon, Tabs, PageError, Loading, Text } from '@deriv/components';
 import {
     isEmptyObject,
     isMobile,
@@ -13,25 +13,28 @@ import {
 } from '@deriv/shared';
 import { Localize, localize } from '@deriv/translations';
 import { ResetTradingPasswordModal } from '@deriv/account';
-import { connect } from 'Stores/connect';
+import { connect } from '../Stores/connect';
 import MissingRealAccount from './missing-real-account';
 import LoadingCFDRealAccountDisplay from './loading-cfd-real-account-display';
-import MT5AccountOpeningRealFinancialStpModal from './mt5-account-opening-real-financial-stp-modal';
 import CompareAccountsModal from './compare-accounts-modal';
-import CFDDashboardContainer from './cfd-dashboard-container';
+import JurisdictionModal from './jurisdiction-modal/jurisdiction-modal';
+import MT5TradeModal from './mt5-trade-modal';
+import CFDDbviOnboarding from './cfd-dbvi-onboarding';
+import CFDDownloadContainer from '../Components/cfd-download-container';
 import CFDPasswordManagerModal from './cfd-password-manager-modal';
 import CFDPasswordModal from './cfd-password-modal';
 import CFDServerErrorDialog from './cfd-server-error-dialog';
 import CFDTopUpDemoModal from './cfd-top-up-demo-modal';
 import CFDResetPasswordModal from './cfd-reset-password-modal';
 import { general_messages } from '../Constants/cfd-shared-strings';
-import CFDFinancialStpPendingDialog from '../Components/cfd-financial-stp-pending-dialog';
-import { CFDDemoAccountDisplay } from '../Components/cfd-demo-account-display';
-import { CFDRealAccountDisplay } from '../Components/cfd-real-account-display';
-import { getPlatformMt5DownloadLink, getPlatformDXTradeDownloadLink } from '../Helpers/constants';
+import SwitchToRealAccountModal from './switch-to-real-account';
 import 'Sass/cfd-dashboard.scss';
-import RootStore from 'Stores/index';
+import RootStore from '../Stores/index';
 import { DetailsOfEachMT5Loginid, LandingCompany, ResidenceList } from '@deriv/api-types';
+// TODO: Change these imports after real released
+import CFDDxtradeDemoAccountDisplay from '../Components/cfd-dxtrade-demo-account-display';
+import CFDMT5DemoAccountDisplay from '../Components/cfd-mt5-demo-account-display';
+import { CFDRealAccountDisplay } from '../Components/cfd-real-account-display';
 
 declare module 'react' {
     interface HTMLAttributes<T> extends React.AriaAttributes, React.DOMAttributes<T> {
@@ -79,37 +82,44 @@ type TMt5StatusServerType = {
     all: number;
     platform: number;
     server_number: number;
+    deposits?: number;
+    withdrawals?: number;
 };
+
+type TDXTraderStatusServerType = Record<'all' | 'demo' | 'real', number>;
 
 type TMt5StatusServer = Record<'demo' | 'real', TMt5StatusServerType[]>;
 
-type TCFDDashboardProps = RouteComponentProps & {
-    account_settings: { residence: string };
+export type TObjectCFDAccount = { category: string; type: string; set_password?: number; platform?: string };
+
+export type TCFDDashboardProps = RouteComponentProps & {
     account_status: object;
     beginRealSignupForMt5: () => void;
     country: string;
-    createCFDAccount: (objCFDAccount: { category: string; type: string; set_password?: number }) => void;
-    current_list: Array<DetailsOfEachMT5Loginid> & { [key: string]: DetailsOfEachMT5Loginid };
+    context: Record<string, any>;
+    createCFDAccount: (objCFDAccount: TObjectCFDAccount) => void;
+    // TODO: update this type (DetailsOfEachMT5Loginid) when BE changed the schema
+    current_list: Record<
+        string,
+        DetailsOfEachMT5Loginid & {
+            enabled: number;
+        }
+    >;
     dxtrade_accounts_list_error: null;
-    isAccountOfTypeDisabled: (
-        account: Array<DetailsOfEachMT5Loginid> & { [key: string]: DetailsOfEachMT5Loginid }
-    ) => boolean;
+    isAccountOfTypeDisabled: (account: Record<string, DetailsOfEachMT5Loginid>) => boolean;
     is_accounts_switcher_on: boolean;
     is_dark_mode_on: boolean;
     is_eu: boolean;
     is_eu_country: boolean;
-    is_fully_authenticated: boolean;
     is_loading: boolean;
     is_logged_in: boolean;
     is_logging_in: boolean;
     is_mt5_allowed: boolean;
+    is_mt5_trade_modal_visible: boolean;
     is_dxtrade_allowed: boolean;
-    is_pending_authentication: boolean;
     is_virtual: boolean;
     landing_companies: LandingCompany;
-    has_malta_account: boolean;
     has_maltainvest_account: boolean;
-    has_cfd_account: boolean;
     has_mt5_real_account_error: boolean;
     has_mt5_demo_account_error: boolean;
     has_dxtrade_real_account_error: boolean;
@@ -134,8 +144,8 @@ type TCFDDashboardProps = RouteComponentProps & {
     residence_list: ResidenceList;
     standpoint: TStandPoint;
     toggleAccountsDialog: () => void;
+    toggleMT5TradeModal: () => void;
     toggleShouldShowRealAccountsList: () => void;
-    can_have_more_real_synthetic_mt5: boolean;
     upgradeable_landing_companies: unknown[];
     is_reset_trading_password_modal_visible: boolean;
     toggleResetTradingPasswordModal: () => void;
@@ -158,6 +168,20 @@ type TCFDDashboardProps = RouteComponentProps & {
     setCurrentAccount: (data: DetailsOfEachMT5Loginid, meta: TOpenAccountTransferMeta) => void;
     setAccountType: (account_type: TOpenAccountTransferMeta) => void;
     mt5_status_server: TMt5StatusServer;
+    dxtrade_status_server: TDXTraderStatusServerType;
+    getRealSyntheticAccountsExistingData: (
+        getRealSyntheticAccountsExistingData: DetailsOfEachMT5Loginid[] | undefined
+    ) => void;
+    getRealFinancialAccountsExistingData: (
+        getRealSyntheticAccountsExistingData: DetailsOfEachMT5Loginid[] | undefined
+    ) => void;
+    openDerivRealAccountNeededModal: () => void;
+    setIsAcuityModalOpen: (value: boolean) => void;
+    refreshNotifications: () => void;
+    real_account_creation_unlock_date: string;
+    setShouldShowCooldownModal: (value: boolean) => void;
+    show_eu_related_content: boolean;
+    is_user_exception: boolean;
 };
 
 const CFDDashboard = (props: TCFDDashboardProps) => {
@@ -182,9 +206,18 @@ const CFDDashboard = (props: TCFDDashboardProps) => {
         selected_server: '',
     });
 
+    const history = useHistory();
+
+    React.useEffect(() => {
+        if (window.location.href.includes(routes.mt5) || window.location.href.includes(routes.dxtrade)) {
+            history.push(routes.traders_hub);
+        }
+    }, [history]);
+
     React.useEffect(() => {
         updateActiveIndex(getIndexToSet());
         openResetPassword();
+        props.refreshNotifications();
         props.onMount();
         return () => {
             props.onUnmount();
@@ -199,7 +232,9 @@ const CFDDashboard = (props: TCFDDashboardProps) => {
         if (props.is_logged_in) {
             ['demo', 'real'].forEach(account_type => {
                 const should_enable_tab =
-                    isSyntheticCardVisible(account_type) || isFinancialCardVisible() || isFinancialStpCardVisible();
+                    isDxtradeAllCardVisible(account_type) ||
+                    isSyntheticCardVisible(account_type) ||
+                    isFinancialCardVisible();
 
                 if (account_type === 'real' && is_real_enabled !== should_enable_tab) {
                     setIsRealEnabled(should_enable_tab);
@@ -215,11 +250,20 @@ const CFDDashboard = (props: TCFDDashboardProps) => {
             setIsRealEnabled(true);
             setIsDemoEnabled(true);
         }
-        if (window.location.hash === '#demo') {
+        if (props.location.hash === '#demo') {
             setIsDemoEnabled(true);
             setActiveIndex(1);
         }
     });
+
+    React.useEffect(() => {
+        if (props.location.hash === '#real') {
+            setActiveIndex(0);
+        }
+        if (props.location.hash === '#demo-all' || props.location.hash === '#demo') {
+            setActiveIndex(1);
+        }
+    }, [props.location.hash]);
 
     const openResetPassword = () => {
         if (!/reset-password/.test(props.location.hash)) {
@@ -304,22 +348,49 @@ const CFDDashboard = (props: TCFDDashboardProps) => {
         props.openPasswordModal();
     };
 
+    const hasAccount = (category: string, type: string) => {
+        return Object.keys(current_list).some(key => key.startsWith(`${platform}.${category}.${type}`));
+    };
+
+    const isDxtradeAllCardVisible = (account_category: string) => {
+        const { platform, landing_companies } = props;
+
+        const has_synthetic_account = hasAccount(account_category, 'synthetic');
+        const has_financial_account = hasAccount(account_category, 'financial');
+
+        if (has_synthetic_account || has_financial_account) return false;
+
+        if (props.is_dxtrade_allowed && !props.is_logged_in) return true;
+
+        return isLandingCompanyEnabled({
+            landing_companies,
+            platform,
+            type: 'all',
+        });
+    };
+
     const isSyntheticCardVisible = (account_category: string) => {
-        const { current_list, platform, is_eu, is_eu_country, landing_companies, is_logged_in } = props;
-        const has_synthetic_account = Object.keys(current_list).some(key =>
-            key.startsWith(`${platform}.${account_category}.synthetic`)
-        );
+        const { platform, is_eu, is_eu_country, landing_companies, is_logged_in } = props;
+        const has_synthetic_account = hasAccount(account_category, 'synthetic');
+        const has_financial_account = hasAccount(account_category, 'financial');
 
         // Hiding card for logged out EU users
         if (!is_logged_in && is_eu_country) return false;
 
-        if (is_eu && !has_synthetic_account) return false;
+        if (is_eu && !has_synthetic_account && platform === CFD_PLATFORMS.DXTRADE) return false;
+
+        if (!has_synthetic_account && !has_financial_account && platform === CFD_PLATFORMS.DXTRADE) return false;
 
         return isLandingCompanyEnabled({ landing_companies, platform, type: 'gaming' }) || !is_logged_in;
     };
 
     const isFinancialCardVisible = () => {
         const { platform, landing_companies, is_logged_in } = props;
+
+        const has_synthetic_account = hasAccount('real', 'synthetic');
+        const has_financial_account = hasAccount('real', 'financial');
+
+        if (!has_synthetic_account && !has_financial_account && platform === CFD_PLATFORMS.DXTRADE) return false;
 
         return (
             !is_logged_in ||
@@ -331,19 +402,7 @@ const CFDDashboard = (props: TCFDDashboardProps) => {
         );
     };
 
-    const isFinancialStpCardVisible = () => {
-        const { platform, landing_companies, is_logged_in, is_eu_country } = props;
-
-        // Hiding card for logged out EU users
-        if (!is_logged_in && is_eu_country) return false;
-
-        return (
-            (landing_companies?.mt_financial_company?.financial_stp || !is_logged_in) && platform === CFD_PLATFORMS.MT5
-        );
-    };
-
     const {
-        account_settings,
         account_status,
         beginRealSignupForMt5,
         country,
@@ -356,18 +415,15 @@ const CFDDashboard = (props: TCFDDashboardProps) => {
         is_dark_mode_on,
         is_eu,
         is_eu_country,
-        is_fully_authenticated,
         is_loading,
         is_logged_in,
         is_logging_in,
         is_mt5_allowed,
+        is_mt5_trade_modal_visible,
         is_dxtrade_allowed,
-        is_pending_authentication,
         is_virtual,
         landing_companies,
-        has_malta_account,
         has_maltainvest_account,
-        has_cfd_account,
         has_mt5_real_account_error,
         has_mt5_demo_account_error,
         has_dxtrade_real_account_error,
@@ -379,11 +435,10 @@ const CFDDashboard = (props: TCFDDashboardProps) => {
         platform,
         openAccountNeededModal,
         residence,
-        residence_list,
         standpoint,
         toggleAccountsDialog,
+        toggleMT5TradeModal,
         toggleShouldShowRealAccountsList,
-        can_have_more_real_synthetic_mt5,
         upgradeable_landing_companies,
         is_reset_trading_password_modal_visible,
         toggleResetTradingPasswordModal,
@@ -392,35 +447,59 @@ const CFDDashboard = (props: TCFDDashboardProps) => {
         mt5_verification_code,
         dxtrade_verification_code,
         mt5_status_server,
+        dxtrade_status_server,
+        getRealSyntheticAccountsExistingData,
+        getRealFinancialAccountsExistingData,
+        openDerivRealAccountNeededModal,
+        setIsAcuityModalOpen,
+        real_account_creation_unlock_date,
+        setShouldShowCooldownModal,
+        show_eu_related_content,
+        is_user_exception,
     } = props;
 
     const should_show_missing_real_account =
-        !is_eu && is_logged_in && !has_real_account && upgradeable_landing_companies?.length > 0;
+        is_logged_in && !has_real_account && upgradeable_landing_companies?.length > 0;
+    const should_enable_add_button = should_show_missing_real_account && CFD_PLATFORMS.MT5 && is_real_enabled;
+
     if ((!country && is_logged_in) || is_logging_in) return <Loading />; // Wait for country name to be loaded before rendering
 
     // all: 1 in mt5_status response means that server is suspended
     const getIsSuspendedMt5Server = (type_server: TMt5StatusServer['demo' | 'real']) =>
         type_server?.map((item: TMt5StatusServerType) => item.all).some((item: number) => item === 1);
 
-    const is_suspended_mt5_demo_server = getIsSuspendedMt5Server(mt5_status_server.demo);
-    const is_suspended_mt5_real_server = getIsSuspendedMt5Server(mt5_status_server.real);
+    const is_suspended_mt5_demo_server = getIsSuspendedMt5Server(mt5_status_server?.demo);
+    const is_suspended_mt5_real_server = getIsSuspendedMt5Server(mt5_status_server?.real);
+    const is_suspended_dxtrade_demo_server = !!dxtrade_status_server?.demo;
+    const is_suspended_dxtrade_real_server = !!dxtrade_status_server?.real;
 
     const has_mt5_account_error = is_demo_tab
         ? is_suspended_mt5_demo_server || has_mt5_demo_account_error || mt5_disabled_signup_types.demo
         : is_suspended_mt5_real_server || has_mt5_real_account_error || mt5_disabled_signup_types.real;
 
     const has_dxtrade_account_error = is_demo_tab
-        ? has_dxtrade_demo_account_error || dxtrade_disabled_signup_types.demo
-        : has_dxtrade_real_account_error || dxtrade_disabled_signup_types.real;
+        ? is_suspended_dxtrade_demo_server || has_dxtrade_demo_account_error || dxtrade_disabled_signup_types.demo
+        : is_suspended_dxtrade_real_server || has_dxtrade_real_account_error || dxtrade_disabled_signup_types.real;
 
-    const has_cfd_account_error =
-        platform === CFD_PLATFORMS.MT5
-            ? has_mt5_account_error
-            : has_dxtrade_account_error || !!dxtrade_accounts_list_error;
+    const has_cfd_account_error = is_user_exception
+        ? !is_user_exception
+        : platform === CFD_PLATFORMS.MT5
+        ? has_mt5_account_error
+        : has_dxtrade_account_error || !!dxtrade_accounts_list_error;
+
+    const has_cfd_real_account_dxtrade_error =
+        is_suspended_dxtrade_real_server || dxtrade_disabled_signup_types.real || !!dxtrade_accounts_list_error;
+    const has_cfd_demo_account_dxtrade_error =
+        is_suspended_dxtrade_demo_server || dxtrade_disabled_signup_types.demo || !!dxtrade_accounts_list_error;
+    const has_cfd_real_account_mt5_error = is_suspended_mt5_real_server || mt5_disabled_signup_types.real;
+    const has_cfd_demo_account_mt5_error = is_suspended_mt5_demo_server || mt5_disabled_signup_types.demo;
 
     const verification_code = platform === CFD_PLATFORMS.MT5 ? mt5_verification_code : dxtrade_verification_code;
 
+    if (platform === CFD_PLATFORMS.MT5 || platform === CFD_PLATFORMS.DXTRADE)
+        return <Redirect to={routes.traders_hub} />;
     if (platform === CFD_PLATFORMS.DXTRADE && !is_dxtrade_allowed) return <Redirect to={routes.mt5} />;
+
     if ((is_logged_in && !landing_companies) || is_loading) return <Loading />;
 
     return (
@@ -480,11 +559,17 @@ const CFDDashboard = (props: TCFDDashboardProps) => {
                                 should_update_hash
                             >
                                 {is_real_enabled && (
-                                    <div label={localize('Real account')} hash='real'>
+                                    <div label={localize('Real account')} data-hash='real'>
                                         <React.Fragment>
                                             {should_show_missing_real_account && (
                                                 <MissingRealAccount
-                                                    onClickSignup={beginRealSignupForMt5}
+                                                    onClickSignup={() => {
+                                                        if (real_account_creation_unlock_date) {
+                                                            setShouldShowCooldownModal(true);
+                                                        } else {
+                                                            beginRealSignupForMt5();
+                                                        }
+                                                    }}
                                                     platform={platform}
                                                 />
                                             )}
@@ -493,77 +578,109 @@ const CFDDashboard = (props: TCFDDashboardProps) => {
                                                 is_eu={is_eu}
                                                 is_eu_country={is_eu_country}
                                                 is_logged_in={is_logged_in}
-                                                has_maltainvest_account={has_maltainvest_account}
-                                                has_malta_account={has_malta_account}
                                                 has_cfd_account_error={
                                                     platform === CFD_PLATFORMS.MT5
-                                                        ? is_suspended_mt5_real_server || mt5_disabled_signup_types.real
-                                                        : is_suspended_mt5_real_server ||
-                                                          dxtrade_disabled_signup_types.real ||
-                                                          !!dxtrade_accounts_list_error
+                                                        ? has_cfd_real_account_mt5_error
+                                                        : is_user_exception
+                                                        ? !is_user_exception
+                                                        : has_cfd_real_account_dxtrade_error
                                                 }
-                                                openAccountNeededModal={openAccountNeededModal}
                                                 current_list={current_list}
                                                 account_status={account_status}
-                                                has_cfd_account={has_cfd_account}
                                                 onSelectAccount={createCFDAccount}
-                                                account_settings={account_settings}
-                                                landing_companies={landing_companies}
-                                                is_pending_authentication={is_pending_authentication}
-                                                is_fully_authenticated={is_fully_authenticated}
+                                                realSyntheticAccountsExistingData={getRealSyntheticAccountsExistingData}
+                                                realFinancialAccountsExistingData={getRealFinancialAccountsExistingData}
                                                 is_virtual={is_virtual}
                                                 isSyntheticCardVisible={isSyntheticCardVisible}
                                                 isFinancialCardVisible={isFinancialCardVisible}
-                                                isFinancialStpCardVisible={isFinancialStpCardVisible}
+                                                isDxtradeAllCardVisible={isDxtradeAllCardVisible}
                                                 openAccountTransfer={openAccountTransfer}
                                                 openPasswordManager={togglePasswordManagerModal}
-                                                openPasswordModal={openRealPasswordModal}
                                                 platform={platform}
                                                 isAccountOfTypeDisabled={isAccountOfTypeDisabled}
                                                 has_real_account={has_real_account}
                                                 standpoint={standpoint}
                                                 toggleAccountsDialog={toggleAccountsDialog}
+                                                toggleMT5TradeModal={toggleMT5TradeModal}
                                                 toggleShouldShowRealAccountsList={toggleShouldShowRealAccountsList}
-                                                can_have_more_real_synthetic_mt5={can_have_more_real_synthetic_mt5}
                                                 residence={residence}
-                                                residence_list={residence_list}
+                                                openDerivRealAccountNeededModal={openDerivRealAccountNeededModal}
+                                                should_enable_add_button={should_enable_add_button}
+                                                setIsAcuityModalOpen={setIsAcuityModalOpen}
+                                                real_account_creation_unlock_date={real_account_creation_unlock_date}
+                                                setShouldShowCooldownModal={setShouldShowCooldownModal}
+                                                show_eu_related_content={show_eu_related_content}
                                             />
                                         </React.Fragment>
                                     </div>
                                 )}
                                 {is_demo_enabled && (
-                                    <div label={localize('Demo account')} hash='demo'>
-                                        <CFDDemoAccountDisplay
-                                            is_eu={is_eu}
-                                            is_eu_country={is_eu_country}
-                                            is_logged_in={is_logged_in}
-                                            has_maltainvest_account={has_maltainvest_account}
-                                            has_cfd_account_error={
-                                                platform === CFD_PLATFORMS.MT5
-                                                    ? is_suspended_mt5_demo_server || mt5_disabled_signup_types.demo
-                                                    : is_suspended_mt5_demo_server ||
-                                                      dxtrade_disabled_signup_types.demo ||
-                                                      !!dxtrade_accounts_list_error
-                                            }
-                                            openAccountNeededModal={openAccountNeededModal}
-                                            standpoint={standpoint}
-                                            is_loading={is_loading}
-                                            isSyntheticCardVisible={isSyntheticCardVisible}
-                                            isFinancialCardVisible={isFinancialCardVisible}
-                                            isFinancialStpCardVisible={isFinancialStpCardVisible}
-                                            has_cfd_account={has_cfd_account}
-                                            current_list={current_list}
-                                            onSelectAccount={createCFDAccount}
-                                            landing_companies={landing_companies}
-                                            openAccountTransfer={openAccountTransfer}
-                                            openPasswordManager={togglePasswordManagerModal}
-                                            platform={platform}
-                                            residence={residence}
-                                        />
+                                    <div label={localize('Demo account')} data-hash='demo'>
+                                        {platform === CFD_PLATFORMS.DXTRADE && (
+                                            <CFDDxtradeDemoAccountDisplay
+                                                is_logged_in={is_logged_in}
+                                                has_cfd_account_error={
+                                                    is_user_exception
+                                                        ? !is_user_exception
+                                                        : has_cfd_demo_account_dxtrade_error
+                                                }
+                                                standpoint={standpoint}
+                                                is_loading={is_loading}
+                                                current_list={current_list}
+                                                onSelectAccount={createCFDAccount}
+                                                landing_companies={landing_companies}
+                                                openAccountTransfer={openAccountTransfer}
+                                                openPasswordManager={togglePasswordManagerModal}
+                                                platform={platform}
+                                            />
+                                        )}
+                                        {platform === CFD_PLATFORMS.MT5 && (
+                                            <CFDMT5DemoAccountDisplay
+                                                is_eu={is_eu}
+                                                is_eu_country={is_eu_country}
+                                                is_logged_in={is_logged_in}
+                                                has_maltainvest_account={has_maltainvest_account}
+                                                has_cfd_account_error={has_cfd_demo_account_mt5_error}
+                                                openAccountNeededModal={openAccountNeededModal}
+                                                standpoint={standpoint}
+                                                is_loading={is_loading}
+                                                isSyntheticCardVisible={isSyntheticCardVisible}
+                                                isFinancialCardVisible={isFinancialCardVisible}
+                                                current_list={current_list}
+                                                onSelectAccount={createCFDAccount}
+                                                landing_companies={landing_companies}
+                                                openAccountTransfer={openAccountTransfer}
+                                                openPasswordManager={togglePasswordManagerModal}
+                                                toggleMT5TradeModal={toggleMT5TradeModal}
+                                                platform={platform}
+                                                residence={residence}
+                                                show_eu_related_content={show_eu_related_content}
+                                            />
+                                        )}
                                     </div>
                                 )}
                             </LoadTab>
-                            <CompareAccountsModal platform={platform} />
+                            <CompareAccountsModal
+                                platform={platform}
+                                is_demo_tab={is_demo_tab}
+                                openPasswordModal={openRealPasswordModal}
+                                is_real_enabled={is_real_enabled}
+                                real_account_creation_unlock_date={real_account_creation_unlock_date}
+                                setShouldShowCooldownModal={setShouldShowCooldownModal}
+                                has_unmerged_account={
+                                    hasAccount('real', 'synthetic') || hasAccount('real', 'financial')
+                                }
+                            />
+                            <SwitchToRealAccountModal />
+                            <JurisdictionModal openPasswordModal={openRealPasswordModal} />
+                            <MT5TradeModal
+                                current_list={current_list}
+                                is_open={is_mt5_trade_modal_visible}
+                                onPasswordManager={togglePasswordManagerModal}
+                                toggleModal={toggleMT5TradeModal}
+                                is_eu_user={(is_logged_in && is_eu) || (!is_logged_in && is_eu_country)}
+                                platform={platform}
+                            />
                             <div className='cfd-dashboard__maintenance'>
                                 <Icon
                                     icon='IcAlertWarning'
@@ -572,82 +689,25 @@ const CFDDashboard = (props: TCFDDashboardProps) => {
                                 />
                                 <div className='cfd-dashboard__maintenance-text'>
                                     {platform === CFD_PLATFORMS.DXTRADE && (
-                                        <Localize i18n_default_text='Server maintenance starts at 06:00 GMT every Sunday and may last up to 2 hours. Service may be disrupted during this time.' />
+                                        <Localize i18n_default_text='Server maintenance starts at 06:00 GMT every Sunday and may last up to 2 hours. You may experience service disruption during this time.' />
                                     )}
                                     {platform === CFD_PLATFORMS.MT5 && (
-                                        <Localize i18n_default_text='Server maintenance starting 01:00 GMT every Sunday. This process may take up to 2 hours to complete. Service may be disrupted during this time.' />
+                                        <Localize i18n_default_text='Server maintenance starts at 01:00 GMT every Sunday, and this process may take up to 2 hours to complete. Service may be disrupted during this time.' />
                                     )}
                                 </div>
                             </div>
                         </div>
-                        <DesktopWrapper>
-                            <CFDDashboardContainer
-                                platform={platform}
-                                active_index={active_index}
-                                is_dark_mode_on={is_dark_mode_on}
-                                dxtrade_tokens={dxtrade_tokens}
-                            />
-                        </DesktopWrapper>
-                        <MobileWrapper>
-                            <div className='cfd-dashboard__download-center'>
-                                <h1 className='cfd-dashboard__download-center--heading'>
-                                    {platform === CFD_PLATFORMS.MT5 && (
-                                        <Localize i18n_default_text='Download the MT5 app' />
-                                    )}
-                                    {platform === CFD_PLATFORMS.DXTRADE && (
-                                        <Localize i18n_default_text='Download the Deriv X app' />
-                                    )}
-                                </h1>
-                                <div className='cfd-dashboard__download-center-options--mobile'>
-                                    <div className='cfd-dashboard__download-center-options--mobile-devices'>
-                                        {platform === CFD_PLATFORMS.MT5 && (
-                                            <React.Fragment>
-                                                <Icon icon='IcMt5DeviceTablet' width={133} height={106} />
-                                                <Icon icon='IcMt5DevicePhone' width={48} height={74} />
-                                            </React.Fragment>
-                                        )}
-                                        {platform === CFD_PLATFORMS.DXTRADE && (
-                                            <React.Fragment>
-                                                <Icon icon='IcDxtradeDeviceTablet' width={133} height={106} />
-                                                <Icon icon='IcDxtradeDevicePhone' width={48} height={74} />
-                                            </React.Fragment>
-                                        )}
-                                    </div>
-                                    <div className='cfd-dashboard__download-center-options--mobile-links'>
-                                        <a
-                                            href={
-                                                platform === CFD_PLATFORMS.MT5
-                                                    ? getPlatformMt5DownloadLink('android')
-                                                    : getPlatformDXTradeDownloadLink('android')
-                                            }
-                                            target='_blank'
-                                            rel='noopener noreferrer'
-                                        >
-                                            <Icon icon='IcInstallationGoogle' width={135} height={40} />
-                                        </a>
-                                        <a
-                                            href={
-                                                platform === CFD_PLATFORMS.MT5
-                                                    ? getPlatformMt5DownloadLink('ios')
-                                                    : getPlatformDXTradeDownloadLink('ios')
-                                            }
-                                            target='_blank'
-                                            rel='noopener noreferrer'
-                                        >
-                                            <Icon icon='IcInstallationApple' width={135} height={40} />
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        </MobileWrapper>
+                        <CFDDownloadContainer
+                            platform={platform}
+                            active_index={active_index}
+                            is_dark_mode_on={is_dark_mode_on}
+                            dxtrade_tokens={dxtrade_tokens}
+                        />
                         <CFDTopUpDemoModal platform={platform} />
                         <CFDPasswordModal platform={platform} has_suspended_account={has_cfd_account_error} />
                         <CFDServerErrorDialog />
-                        {platform === CFD_PLATFORMS.MT5 && (
-                            <React.Fragment>
-                                <MT5AccountOpeningRealFinancialStpModal />
-                                <CFDFinancialStpPendingDialog />
-                            </React.Fragment>
+                        {platform === CFD_PLATFORMS.MT5 && is_logged_in && (
+                            <CFDDbviOnboarding openPasswordModal={openRealPasswordModal} />
                         )}
                         <CFDResetPasswordModal platform={platform} />
                         <ResetTradingPasswordModal
@@ -668,7 +728,7 @@ const CFDDashboard = (props: TCFDDashboardProps) => {
                         <Localize
                             i18n_default_text='{{platform_name_mt5}} is not available in {{country}}'
                             values={{
-                                country: account_settings.residence,
+                                country,
                                 platform_name_mt5: getPlatformSettings('mt5').name,
                             }}
                             components={[<br key={0} />]}
@@ -695,11 +755,12 @@ const CFDDashboard = (props: TCFDDashboardProps) => {
 };
 
 export default withRouter(
-    connect(({ client, modules, ui }: RootStore) => ({
+    connect(({ client, modules, notifications, ui, traders_hub }: RootStore) => ({
         beginRealSignupForMt5: modules.cfd.beginRealSignupForMt5,
         checkShouldOpenAccount: modules.cfd.checkShouldOpenAccount,
         country: client.account_settings.residence,
         client_email: client.email_address,
+        context: { ui, modules },
         createCFDAccount: modules.cfd.createCFDAccount,
         current_list: modules.cfd.current_list,
         dxtrade_tokens: modules.cfd.dxtrade_tokens,
@@ -715,38 +776,37 @@ export default withRouter(
         mt5_disabled_signup_types: client.mt5_disabled_signup_types,
         dxtrade_disabled_signup_types: client.dxtrade_disabled_signup_types,
         has_maltainvest_account: client.has_maltainvest_account,
-        has_malta_account: client.has_malta_account,
         can_upgrade_to: client.can_upgrade_to,
-        account_settings: client.account_settings,
         disableCFDPasswordModal: modules.cfd.disableCFDPasswordModal,
         dxtrade_accounts_list_error: client.dxtrade_accounts_list_error,
-        is_pending_authentication: client.is_pending_authentication,
         is_compare_accounts_visible: modules.cfd.is_compare_accounts_visible,
+        is_mt5_trade_modal_visible: modules.cfd.is_mt5_trade_modal_visible,
         is_fully_authenticated: client.is_fully_authenticated,
         openPasswordModal: modules.cfd.enableCFDPasswordModal,
         openAccountNeededModal: ui.openAccountNeededModal,
+        getRealSyntheticAccountsExistingData: modules.cfd.getRealSyntheticAccountsExistingData,
+        getRealFinancialAccountsExistingData: modules.cfd.getRealFinancialAccountsExistingData,
         is_loading: client.is_populating_mt5_account_list,
         residence: client.residence,
-        residence_list: client.residence_list,
-        has_cfd_account: modules.cfd.has_cfd_account,
         has_mt5_real_account_error: client.has_account_error_in_mt5_real_list,
         has_mt5_demo_account_error: client.has_account_error_in_mt5_demo_list,
         has_dxtrade_real_account_error: client.has_account_error_in_dxtrade_real_list,
         has_dxtrade_demo_account_error: client.has_account_error_in_dxtrade_demo_list,
         has_real_account: client.has_active_real_account,
         setAccountType: modules.cfd.setAccountType,
-        setCFDPasswordResetModal: modules.cfd.setCFDPasswordResetModal,
+        setCFDPasswordResetModal: ui.setCFDPasswordResetModal,
         setCurrentAccount: modules.cfd.setCurrentAccount,
         standpoint: client.standpoint,
         toggleCompareAccounts: modules.cfd.toggleCompareAccountsModal,
+        toggleMT5TradeModal: modules.cfd.toggleMT5TradeModal,
         is_accounts_switcher_on: ui.is_accounts_switcher_on,
         openTopUpModal: ui.openTopUpModal,
         NotificationMessages: ui.notification_messages_ui,
         onMount: modules.cfd.onMount,
         onUnmount: modules.cfd.onUnmount,
+        refreshNotifications: notifications.refreshNotifications,
         toggleAccountsDialog: ui.toggleAccountsDialog,
         toggleShouldShowRealAccountsList: ui.toggleShouldShowRealAccountsList,
-        can_have_more_real_synthetic_mt5: client.can_have_more_real_synthetic_mt5,
         upgradeable_landing_companies: client.upgradeable_landing_companies,
         is_dark_mode_on: ui.is_dark_mode_on,
         disableApp: ui.disableApp,
@@ -756,5 +816,12 @@ export default withRouter(
         mt5_verification_code: client.verification_code.trading_platform_mt5_password_reset,
         dxtrade_verification_code: client.verification_code.trading_platform_dxtrade_password_reset,
         mt5_status_server: client.website_status.mt5_status,
+        dxtrade_status_server: client.website_status.dxtrade_status,
+        openDerivRealAccountNeededModal: ui.openDerivRealAccountNeededModal,
+        setIsAcuityModalOpen: ui.setIsAcuityModalOpen,
+        setShouldShowCooldownModal: ui.setShouldShowCooldownModal,
+        real_account_creation_unlock_date: client.real_account_creation_unlock_date,
+        show_eu_related_content: traders_hub.show_eu_related_content,
+        is_user_exception: client.account_settings.dxtrade_user_exception,
     }))(CFDDashboard)
 );

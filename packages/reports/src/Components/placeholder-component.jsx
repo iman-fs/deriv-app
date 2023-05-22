@@ -14,7 +14,7 @@ const PlaceholderComponent = props => {
                     localized_period_message={props.localized_period_message}
                 />
             )}
-            {props.is_loading && <Loading />}
+            {props.is_loading && <Loading data_testid='dt_loading_component' />}
         </React.Fragment>
     );
 };
@@ -24,7 +24,7 @@ PlaceholderComponent.propTypes = {
     empty_message_component: PropTypes.func,
     has_selected_date: PropTypes.bool,
     is_empty: PropTypes.bool,
-    is_loading: PropTypes.node,
+    is_loading: PropTypes.bool,
     localized_message: PropTypes.string,
     localized_period_message: PropTypes.string,
 };

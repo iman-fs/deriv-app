@@ -16,6 +16,10 @@
         left: 1.6rem;
         right: 1.6rem;
     }
+
+    &--traders-hub {
+        margin: 1rem 1rem 0 0;
+    }
 }
 
 /** @define notification; weak */
@@ -111,6 +115,10 @@
             pointer-events: none;
             opacity: 0.07;
             z-index: 0;
+
+            &--header-only {
+                bottom: -10.5rem;
+            }
         }
     }
     &:not(:last-child) {

@@ -100,8 +100,12 @@ const WelcomeColumn = ({
 const footer_text = localize('You can switch between CFDs, digital options, and multipliers at any time.');
 
 WelcomeColumn.propTypes = {
+    className: PropTypes.string,
     description: PropTypes.string,
+    footer_text: PropTypes.string,
     icons: PropTypes.array,
+    onMouseEnter: PropTypes.func,
+    onMouseLeave: PropTypes.func,
     platforms: PropTypes.arrayOf(PropTypes.object),
     title: PropTypes.string,
 };
@@ -126,7 +130,7 @@ const WelcomeModal = ({ toggleWelcomeModal, history, is_bot_allowed, is_dxtrade_
         const platforms = [
             {
                 icon: getPlatformSettings('mt5').icon,
-                title: localize('DMT5'),
+                title: localize('Deriv MT5'),
                 description: localize(
                     'Trade on Deriv MT5 ({{platform_name_dmt5}}), the all-in-one FX and CFD trading platform.',
                     { platform_name_dmt5: getPlatformSettings('dmt5').name }

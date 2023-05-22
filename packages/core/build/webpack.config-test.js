@@ -3,7 +3,7 @@ const path = require('path');
 const nodeExternals = require('webpack-node-externals');
 
 module.exports = function (env) {
-    const base = env && env.base && env.base !== true ? `/${  env.base  }/` : '/';
+    const base = env && env.base && env.base !== true ? `/${env.base}/` : '/';
 
     return {
         context: path.resolve(__dirname, '../src'),
@@ -12,7 +12,7 @@ module.exports = function (env) {
         externals: [nodeExternals()],
         mode: IS_RELEASE ? 'development' : 'production',
         module: {
-            rules: rules(true, env && env.mocha_only),
+            rules: rules(true),
         },
         optimization: {
             chunkIds: 'named',

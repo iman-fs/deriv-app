@@ -73,7 +73,7 @@ const MFRegulatoryInformation = () => (
     <div className='footer-regulatory-information'>
         <p>
             <Localize
-                i18n_default_text='Financial products in the EU are offered by {{legal_entity_name}}, licensed as a Category 3 Investment Services provider by the Malta Financial Services Authority (<0>licence no. IS/70156</0>).'
+                i18n_default_text='Financial products in the EU are offered by {{legal_entity_name}}, licensed as a Category 3 Investment Services provider by the Malta Financial Services Authority (<0>Licence no. IS/70156</0>).'
                 components={[
                     <a
                         href={`https://${deriv_urls.DERIV_HOST_NAME}/regulatory/Deriv_Investments_(Europe)_Limited.pdf`}
@@ -91,9 +91,9 @@ const MFRegulatoryInformation = () => (
     </div>
 );
 
-export const RegulatoryInformation = ({ landing_company, is_eu }) => {
+export const RegulatoryInformation = ({ landing_company, is_eu, show_eu_related_content }) => {
     const [should_show_modal, showModal] = React.useState(false);
-    if (!is_eu) return null;
+    if (!is_eu || (is_eu && !show_eu_related_content)) return null;
     const is_mx = landing_company === 'iom';
     const is_mlt = landing_company === 'malta';
     const is_mf = landing_company === 'maltainvest';
@@ -114,7 +114,7 @@ export const RegulatoryInformation = ({ landing_company, is_eu }) => {
             >
                 {is_mx && <MXRegulatoryInformation />}
                 {is_mlt && <MLTRegulatoryInformation />}
-                {is_mf && <MFRegulatoryInformation />}
+                {(is_mf || show_eu_related_content) && <MFRegulatoryInformation />}
             </Modal>
         </div>
     );

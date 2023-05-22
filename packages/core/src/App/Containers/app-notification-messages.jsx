@@ -1,14 +1,17 @@
+import classNames from 'classnames';
 import PropTypes from 'prop-types';
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { TransitionGroup, CSSTransition } from 'react-transition-group';
-import { isMobile, getPathname, getPlatformSettings } from '@deriv/shared';
+import { CSSTransition, TransitionGroup } from 'react-transition-group';
+import { getPathname, getPlatformSettings, isMobile, routes } from '@deriv/shared';
+import 'Sass/app/_common/components/app-notification-message.scss';
 import { connect } from 'Stores/connect';
 import Notification, {
     max_display_notifications,
     max_display_notifications_mobile,
 } from '../Components/Elements/NotificationMessage';
-import 'Sass/app/_common/components/app-notification-message.scss';
+import { useLocation } from 'react-router-dom';
+import { excluded_notifications, priority_toast_messages } from '../../Stores/Helpers/client-notifications';
 
 const Portal = ({ children }) =>
     isMobile() ? ReactDOM.createPortal(children, document.getElementById('deriv_app')) : children;
@@ -38,14 +41,20 @@ const NotificationsContent = ({
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [window_location]);
+    const { pathname } = useLocation();
 
     return (
-        <div className='notification-messages' style={style}>
+        <div
+            className={classNames('notification-messages', {
+                'notification-messages--traders-hub': pathname === routes.traders_hub,
+            })}
+            style={style}
+        >
             <TransitionGroup component='div'>
-                {notifications.map((notification, idx) => (
+                {notifications.map(notification => (
                     <CSSTransition
-                        appear={!is_notification_loaded}
-                        key={idx}
+                        appear={!!is_notification_loaded}
+                        key={notification.key}
                         in={!!notification.header}
                         timeout={150}
                         classNames={{
@@ -103,17 +112,54 @@ const AppNotificationMessages = ({
                   'dp2p',
                   'install_pwa',
                   'tnc',
+                  'need_fa',
                   'deriv_go',
                   'close_mx_mlt_account',
                   'trustpilot',
                   'close_uk_account',
-              ].includes(message.key)
+                  'p2p_daily_limit_increase',
+                  'document_needs_action',
+                  'identity',
+                  'poi_name_mismatch',
+                  'poi_expired',
+                  'poi_failed',
+                  'poi_verified',
+                  'poa_expired',
+                  'resticted_mt5_with_pending_poa',
+                  'poa_verified',
+                  'poa_failed',
+                  'resticted_mt5_with_failed_poa',
+                  'poa_rejected_for_mt5',
+                  'poa_address_mismatch_warning',
+                  'poa_address_mismatch_success',
+                  'poa_address_mismatch_failure',
+                  'svg_needs_poi_poa',
+                  'svg_needs_poa',
+                  'has_changed_two_fa',
+                  'svg_needs_poi',
+                  'svg_poi_expired',
+                  'switched_to_real',
+              ].includes(message.key) || message.type === 'p2p_completed_order'
             : true;
-        return is_not_marked_notification && is_non_hidden_notification;
+
+        const is_only_for_p2p_notification =
+            window.location.pathname !== routes.cashier_p2p || message?.platform === 'P2P';
+        return is_not_marked_notification && is_non_hidden_notification && is_only_for_p2p_notification;
     });
 
     const notifications_limit = isMobile() ? max_display_notifications_mobile : max_display_notifications;
-    const notifications_sublist = notifications.slice(0, notifications_limit);
+    //TODO (yauheni-kryzhyk): showing pop-up only for specific messages. the rest of notifications are hidden. this logic should be changed in the upcoming new pop-up notifications implementation
+
+    const filtered_excluded_notifications = notifications.filter(message =>
+        priority_toast_messages.includes(message.key) || message.type.includes('p2p')
+            ? message
+            : excluded_notifications.includes(message.key)
+    );
+
+    const notifications_sublist =
+        window.location.pathname === routes.cashier_deposit
+            ? filtered_excluded_notifications.filter(message => message.key.includes('switched_to_real'))
+            : filtered_excluded_notifications.slice(0, notifications_limit);
 
     if (!should_show_popups) return null;
 
@@ -137,7 +183,14 @@ const AppNotificationMessages = ({
 };
 
 AppNotificationMessages.propTypes = {
+    has_iom_account: PropTypes.bool,
+    has_malta_account: PropTypes.bool,
+    is_logged_in: PropTypes.bool,
+    is_mt5: PropTypes.bool,
+    is_notification_loaded: PropTypes.bool,
+    landing_company_shortcode: PropTypes.string,
     marked_notifications: PropTypes.array,
+    markNotificationMessage: PropTypes.func,
     notification_messages: PropTypes.arrayOf(
         PropTypes.shape({
             closeOnClick: PropTypes.func,
@@ -159,6 +212,8 @@ AppNotificationMessages.propTypes = {
         })
     ),
     removeNotificationMessage: PropTypes.func,
+    should_show_popups: PropTypes.bool,
+    stopNotificationLoading: PropTypes.func,
 };
 
 export default connect(({ client, notifications }) => ({

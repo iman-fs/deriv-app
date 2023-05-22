@@ -1,9 +1,12 @@
 import { localize } from '@deriv/translations';
+import { address_permitted_special_characters_message } from '@deriv/shared';
 
 export const FORM_ERROR_MESSAGES = {
+    empty_address: () => localize('This field is required.'),
     address: () =>
         localize('Use only the following special characters: {{permitted_characters}}', {
-            permitted_characters: ". , ' : ; ( ) @ # / -",
+            permitted_characters: address_permitted_special_characters_message,
+            interpolation: { escapeValue: false },
         }),
     barrier: () =>
         localize('Only numbers and these special characters are allowed: {{permitted_characters}}', {
@@ -11,7 +14,7 @@ export const FORM_ERROR_MESSAGES = {
         }),
     email: () => localize('Invalid email address.'),
     general: () => localize('Only letters, numbers, space, hyphen, period, and apostrophe are allowed.'),
-    letter_symbol: () => localize('Letters, spaces, periods, hyphens, apostrophes only'),
+    name: () => localize('Letters, spaces, periods, hyphens, apostrophes only.'),
     password: () => localize('Password should have lower and uppercase English letters with numbers.'),
     po_box: () => localize('P.O. Box is not accepted in address'),
     phone: () => localize('Please enter a valid phone number (e.g. +15417541234).'),
@@ -28,10 +31,7 @@ export const FORM_ERROR_MESSAGES = {
             max_value,
         }),
     minNumber: min_value => localize('Should be more than {{min_value}}', { min_value }),
-    maxNumber: max_value =>
-        localize('Should be less than {{max_value}}', {
-            max_value,
-        }),
+    maxNumber: max_value => localize('Should be less than {{max_value}}', { max_value }),
     // all existing warning phrases from zxcvbn
     password_warnings: {
         use_a_few_words: () => localize('Use a few words, avoid common phrases'),

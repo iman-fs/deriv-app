@@ -4,7 +4,7 @@ import React from 'react';
 import { withRouter } from 'react-router';
 import WS from 'Services/ws-methods';
 import { DesktopWrapper, MobileWrapper, ThemedScrollbars } from '@deriv/components';
-import { CookieStorage, isMobile, TRACKING_STATUS_KEY, PlatformContext, platforms } from '@deriv/shared';
+import { CookieStorage, isMobile, TRACKING_STATUS_KEY, PlatformContext, platforms, routes } from '@deriv/shared';
 import { connect } from 'Stores/connect';
 import CookieBanner from '../../Components/Elements/CookieBanner/cookie-banner.jsx';
 
@@ -26,12 +26,20 @@ const AppContents = ({
     platform,
     pageView,
     pushDataLayer,
+    setAppContentsScrollRef,
 }) => {
     const [show_cookie_banner, setShowCookieBanner] = React.useState(false);
     const [is_gtm_tracking, setIsGtmTracking] = React.useState(false);
     const { is_appstore } = React.useContext(PlatformContext);
 
     const tracking_status = tracking_status_cookie.get(TRACKING_STATUS_KEY);
+
+    const scroll_ref = React.useRef(null);
+
+    React.useEffect(() => {
+        if (scroll_ref.current) setAppContentsScrollRef(scroll_ref);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     React.useEffect(() => {
         const allow_tracking = !is_eu_country || tracking_status === 'accepted';
@@ -90,14 +98,20 @@ const AppContents = ({
                 'app-contents--is-scrollable': is_cfd_page || is_cashier_visible,
                 'app-contents--is-dashboard': is_appstore,
                 'app-contents--is-hidden': platforms[platform],
+                'app-contents--is-onboarding': window.location.pathname === routes.onboarding,
             })}
+            ref={scroll_ref}
         >
             <MobileWrapper>{children}</MobileWrapper>
             <DesktopWrapper>
                 {/* Calculate height of user screen and offset height of header and footer */}
-                <ThemedScrollbars height='calc(100vh - 84px)' has_horizontal>
-                    {children}
-                </ThemedScrollbars>
+                {window.location.pathname === routes.onboarding ? (
+                    <ThemedScrollbars style={{ maxHeight: '', height: '100%' }}>{children}</ThemedScrollbars>
+                ) : (
+                    <ThemedScrollbars height='calc(100vh - 84px)' has_horizontal>
+                        {children}
+                    </ThemedScrollbars>
+                )}
             </DesktopWrapper>
             {show_cookie_banner && (
                 <CookieBanner
@@ -119,6 +133,15 @@ AppContents.propTypes = {
     is_cfd_page: PropTypes.bool,
     is_positions_drawer_on: PropTypes.bool,
     is_route_modal_on: PropTypes.bool,
+    is_dark_mode: PropTypes.bool,
+    is_eu_country: PropTypes.bool,
+    is_logging_in: PropTypes.bool,
+    identifyEvent: PropTypes.func,
+    pageView: PropTypes.func,
+    pushDataLayer: PropTypes.func,
+    notifyAppInstall: PropTypes.func,
+    platform: PropTypes.string,
+    setAppContentsScrollRef: PropTypes.func,
 };
 
 export default withRouter(
@@ -138,5 +161,6 @@ export default withRouter(
         is_route_modal_on: ui.is_route_modal_on,
         notifyAppInstall: ui.notifyAppInstall,
         platform: common.platform,
+        setAppContentsScrollRef: ui.setAppContentsScrollRef,
     }))(AppContents)
 );

@@ -1,8 +1,8 @@
 import * as React from 'react';
 import PropTypes from 'prop-types';
 import { isMobile } from '@deriv/shared';
-import Dropdown from '../dropdown/dropdown.jsx';
-import SelectNative from '../select-native/select-native.jsx';
+import Dropdown from '../dropdown/dropdown';
+import SelectNative from '../select-native/select-native';
 
 const FilterDropdown = ({
     dropdown_className,
@@ -53,6 +53,7 @@ FilterDropdown.propTypes = {
     filter_list: PropTypes.array.isRequired,
     handleFilterChange: PropTypes.func,
     initial_filter: PropTypes.string,
+    initial_selected_filter: PropTypes.string,
 };
 
 export default FilterDropdown;

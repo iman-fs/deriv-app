@@ -5,14 +5,14 @@
     "author": "Deriv",
     "license": "Apache-2.0",
     "homepage": "https://github.com/binary-com/deriv-app#readme",
-    "main": "src/index.js",
+    "main": "src/index.ts",
     "private": true,
     "repository": {
         "type": "git",
         "url": "git+https://github.com/binary-com/deriv-app.git"
     },
     "engines": {
-        "node": "^14.17.1"
+        "node": "^16.16.0"
     },
     "scripts": {
         "start": "echo \"No start specified\"",
@@ -24,7 +24,7 @@
         "deploy:folder": "echo \"No deploy:folder specified\"",
         "deploy:staging": "echo \"No deploy:staging specified\"",
         "deploy:production": "echo \"No deploy:production specified\"",
-        "test:eslint": "eslint \"./src/**/*.?(js|jsx)\""
+        "test:eslint": "eslint \"./src/**/*.?(js|jsx|ts|tsx)\""
     },
     "bugs": {
         "url": "https://github.com/binary-com/deriv-app/issues"
@@ -32,23 +32,26 @@
     "devDependencies": {
         "@babel/eslint-parser": "^7.17.0",
         "@babel/preset-react": "^7.16.7",
-        "chai": "^4.2.0",
-        "jsdom": "^16.2.1",
-        "moment": "^2.29.2"
+        "@types/jsdom": "^20.0.0",
+        "@types/react": "^18.0.7",
+        "@types/react-dom": "^18.0.0",
+        "jsdom": "^21.1.1",
+        "moment": "^2.29.2",
+        "typescript": "^4.6.3"
     },
     "dependencies": {
+        "@deriv/api-types": "^1.0.94",
         "@deriv/translations": "^1.0.0",
         "@types/js-cookie": "^3.0.1",
-        "@types/moment": "^2.13.0",
         "@types/react-loadable": "^5.5.6",
         "canvas-toBlob": "^1.0.0",
         "extend": "^3.0.2",
-        "i18next": "^20.3.2",
+        "i18next": "^22.4.6",
         "js-cookie": "^2.2.1",
-        "mobx": "^5.15.7",
+        "mobx": "^6.6.1",
         "moment": "^2.29.2",
         "object.fromentries": "^2.0.0",
-        "react": "^16.14.0",
+        "react": "^17.0.2",
         "react-loadable": "^5.5.0"
     }
 }

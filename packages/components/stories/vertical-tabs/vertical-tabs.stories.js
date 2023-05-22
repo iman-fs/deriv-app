@@ -22,7 +22,9 @@ const TextComponent = props => (
 
 const action_bar_items = [
     {
-        onClick: () => {},
+        onClick: () => {
+            /* TODO document why this method 'onClick' is empty */
+        },
         icon: 'IcCross',
         title: 'Close',
     },
@@ -52,7 +54,7 @@ const action_bar_items = [
 const list = [
     {
         default: true,
-        icon: 'IcBrandDtrader',
+        icon: 'IcRebrandingDerivTrader',
         label: 'Option 1',
         value: () => (
             <TextComponent>
@@ -66,7 +68,7 @@ const list = [
     },
     {
         default: false,
-        icon: 'IcBrandDbot',
+        icon: 'IcRebrandingDerivBot',
         label: 'Option 2',
         value: () => (
             <TextComponent>
@@ -89,7 +91,7 @@ stories.addDecorator(withKnobs);
 stories.add(
     'Basic usage',
     () => {
-        const [_, setVerticalTabIndex] = React.useState(0);
+        const [, setVerticalTabIndex] = React.useState(0);
 
         return (
             <Wrapper is_dark={boolean('dark theme', false)}>
@@ -97,7 +99,6 @@ stories.add(
                     <VerticalTab
                         header_title='Header'
                         action_bar={action_bar_items}
-                        alignment='center'
                         current_path='/'
                         is_routed={false}
                         is_full_width={boolean('full screen', true)}

@@ -1,11 +1,14 @@
 import classNames from 'classnames';
 import React from 'react';
-import PropTypes from 'prop-types';
-import { Button, HintBox, Text, ThemedScrollbars } from '@deriv/components';
-import { formatMoney, isDesktop } from '@deriv/shared';
-import { observer } from 'mobx-react-lite';
+import { useHistory } from 'react-router-dom';
+import { Button, HintBox, Icon, Text, ThemedScrollbars } from '@deriv/components';
+import { formatMoney, isDesktop, isMobile } from '@deriv/shared';
+import { useStore, observer } from '@deriv/stores';
 import { Localize, localize } from 'Components/i18next';
+import { api_error_codes } from '../../constants/api-error-codes.js';
 import Chat from 'Components/orders/chat/chat.jsx';
+import StarRating from 'Components/star-rating';
+import UserRatingButton from 'Components/user-rating-button';
 import OrderDetailsFooter from 'Components/order-details/order-details-footer.jsx';
 import OrderDetailsTimer from 'Components/order-details/order-details-timer.jsx';
 import OrderInfoBlock from 'Components/order-details/order-info-block.jsx';
@@ -15,64 +18,164 @@ import { useStores } from 'Stores';
 import PaymentMethodAccordionHeader from './payment-method-accordion-header.jsx';
 import PaymentMethodAccordionContent from './payment-method-accordion-content.jsx';
 import MyProfileSeparatorContainer from '../my-profile/my-profile-separator-container';
-import { setDecimalPlaces, removeTrailingZeros, roundOffDecimal } from 'Utils/format-value.js';
+import { setDecimalPlaces, removeTrailingZeros, roundOffDecimal } from 'Utils/format-value';
+import { getDateAfterHours } from 'Utils/date-time';
+import { useModalManagerContext } from 'Components/modal-manager/modal-manager-context';
 import 'Components/order-details/order-details.scss';
 
-const OrderDetails = observer(({ onPageReturn }) => {
-    const [should_expand_all, setShouldExpandAll] = React.useState(false);
-    const { order_store, sendbird_store } = useStores();
+const OrderDetails = observer(() => {
+    const { buy_sell_store, general_store, my_profile_store, order_store, sendbird_store } = useStores();
+    const {
+        notifications: { removeNotificationByKey, removeNotificationMessage, setP2POrderProps },
+    } = useStore();
+    const { hideModal, isCurrentModal, showModal, useRegisterModalProps } = useModalManagerContext();
+
     const {
         account_currency,
         advert_details,
         amount_display,
         chat_channel_url: order_channel_url,
+        completion_time,
         contact_info,
         has_timer_expired,
         id,
         is_active_order,
-        is_buy_order,
+        is_buy_order_for_user,
         is_buyer_confirmed_order,
-        is_my_ad,
+        is_completed_order,
         is_pending_order,
-        is_sell_order,
+        is_reviewable,
+        is_user_recommended_previously,
         labels,
         local_currency,
         other_user_details,
         payment_info,
-        // price, TODO: Uncomment when price is fixed
+        previous_recommendation,
         purchase_time,
         rate,
+        review_details,
         should_highlight_alert,
         should_highlight_danger,
         should_highlight_success,
         should_show_lost_funds_banner,
         should_show_order_footer,
         status_string,
+        verification_pending,
     } = order_store?.order_information;
 
     const { chat_channel_url } = sendbird_store;
+
+    const [should_expand_all, setShouldExpandAll] = React.useState(false);
+    const [remaining_review_time, setRemainingReviewTime] = React.useState(null);
+
+    const history = useHistory();
+
+    const page_title = is_buy_order_for_user
+        ? localize('Buy {{offered_currency}} order', { offered_currency: account_currency })
+        : localize('Sell {{offered_currency}} order', { offered_currency: account_currency });
+
+    const rating_average_decimal = review_details ? Number(review_details.rating).toFixed(1) : undefined;
+
+    const showRatingModal = () => {
+        showModal({
+            key: 'RatingModal',
+        });
+    };
 
     React.useEffect(() => {
         const disposeListeners = sendbird_store.registerEventListeners();
         const disposeReactions = sendbird_store.registerMobXReactions();
 
-        if (order_channel_url) {
-            sendbird_store.setChatChannelUrl(order_channel_url);
+        order_store.getSettings();
+        order_store.getWebsiteStatus();
+        order_store.setRatingValue(0);
+        order_store.setIsRecommended(undefined);
+        my_profile_store.getPaymentMethodsList();
+
+        const handleChatChannelCreation = () => {
+            if (order_channel_url) {
+                sendbird_store.setChatChannelUrl(order_channel_url);
+            } else {
+                sendbird_store.createChatForNewOrder(order_store.order_id);
+            }
+        };
+
+        // TODO: remove condition check and settimeout once access chat_channel_url from p2p_order_create is activated in BO, since chat channel url response is always delayed
+        // Added delay only for first time order creation, since response is delayed. To be removed after feature release.
+        if (buy_sell_store.is_create_order_subscribed) {
+            setTimeout(() => {
+                handleChatChannelCreation();
+            }, 1250);
         } else {
-            sendbird_store.createChatForNewOrder(order_store.order_id);
+            handleChatChannelCreation();
         }
 
         return () => {
             disposeListeners();
             disposeReactions();
             order_store.setOrderPaymentMethodDetails(undefined);
+            order_store.setOrderId(null);
+            order_store.setActiveOrder(null);
+            setP2POrderProps({
+                order_id: order_store.order_id,
+                redirectToOrderDetails: general_store.redirectToOrderDetails,
+                setIsRatingModalOpen: is_open => (is_open ? showRatingModal : hideModal),
+            });
+            history.replace({
+                search: '',
+                hash: location.hash,
+            });
+            buy_sell_store.setIsCreateOrderSubscribed(false);
+            buy_sell_store.unsubscribeCreateOrder();
+            sendbird_store.setHasChatError(false);
         };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const page_title =
-        (is_buy_order && !is_my_ad) || (is_sell_order && is_my_ad)
-            ? localize('Buy {{offered_currency}} order', { offered_currency: account_currency })
-            : localize('Sell {{offered_currency}} order', { offered_currency: account_currency });
+    React.useEffect(() => {
+        if (
+            verification_pending === 0 &&
+            !is_buy_order_for_user &&
+            status_string !== 'Expired' &&
+            order_store.error_code !== api_error_codes.EXCESSIVE_VERIFICATION_REQUESTS
+        ) {
+            showModal({ key: 'EmailLinkExpiredModal' }, { should_stack_modal: isMobile() });
+        }
+
+        if (status_string === 'Expired' && isCurrentModal('EmailLinkExpiredModal'))
+            hideModal({ should_hide_all_modals: true });
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [verification_pending, status_string]);
+
+    React.useEffect(() => {
+        if (completion_time) {
+            setRemainingReviewTime(getDateAfterHours(completion_time, general_store.review_period));
+        }
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [completion_time]);
+
+    useRegisterModalProps({
+        key: 'RatingModal',
+        props: {
+            is_buy_order_for_user,
+            is_user_recommended_previously,
+            onClickDone: () => {
+                order_store.setOrderRating(id);
+                removeNotificationMessage({
+                    key: `p2p_order_${id}`,
+                });
+                removeNotificationByKey({
+                    key: `p2p_order_${id}`,
+                });
+            },
+            onClickSkip: () => {
+                order_store.setRatingValue(0);
+                hideModal();
+            },
+            previous_recommendation,
+        },
+    });
 
     if (sendbird_store.should_show_chat_on_orders) {
         return <Chat />;
@@ -81,9 +184,10 @@ const OrderDetails = observer(({ onPageReturn }) => {
     const display_payment_amount = removeTrailingZeros(
         formatMoney(local_currency, amount_display * roundOffDecimal(rate, setDecimalPlaces(rate, 6)), true)
     );
+    const rate_amount = removeTrailingZeros(formatMoney(local_currency, rate, true, 6));
 
     return (
-        <OrderDetailsWrapper page_title={page_title} onPageReturn={onPageReturn}>
+        <OrderDetailsWrapper page_title={page_title}>
             {should_show_lost_funds_banner && (
                 <div className='order-details--warning'>
                     <HintBox
@@ -153,7 +257,7 @@ const OrderDetails = observer(({ onPageReturn }) => {
                                 />
                                 <OrderInfoBlock
                                     label={localize('Rate (1 {{ account_currency }})', { account_currency })}
-                                    value={removeTrailingZeros(formatMoney(local_currency, rate, true, 6))}
+                                    value={`${rate_amount} ${local_currency}`}
                                 />
                             </div>
                             <div className='order-details-card__info--right'>
@@ -179,11 +283,9 @@ const OrderDetails = observer(({ onPageReturn }) => {
                                                 transparent
                                             >
                                                 <Text size='xss' weight='bold' color='red'>
-                                                    {localize('{{accordion_state}}', {
-                                                        accordion_state: should_expand_all
-                                                            ? 'Collapse all'
-                                                            : 'Expand all',
-                                                    })}
+                                                    {should_expand_all
+                                                        ? localize('Collapse all')
+                                                        : localize('Expand all')}
                                                 </Text>
                                             </Button>
                                         </section>
@@ -198,6 +300,7 @@ const OrderDetails = observer(({ onPageReturn }) => {
                                                 content: (
                                                     <PaymentMethodAccordionContent payment_method={payment_method} />
                                                 ),
+                                                payment_method,
                                             }))}
                                             is_expand_all={should_expand_all}
                                             onChange={setShouldExpandAll}
@@ -212,13 +315,9 @@ const OrderDetails = observer(({ onPageReturn }) => {
                                         value={payment_info || '-'}
                                     />
                                 )}
-                            </React.Fragment>
-                        )}
-                        {is_active_order && (
-                            <React.Fragment>
                                 <MyProfileSeparatorContainer.Line className='order-details-card--line' />
                                 <OrderInfoBlock
-                                    className='order-details-card--padding'
+                                    className='order-details-card--padding order-details-card__textbox'
                                     label={labels.contact_details}
                                     size='xs'
                                     weight='bold'
@@ -226,16 +325,94 @@ const OrderDetails = observer(({ onPageReturn }) => {
                                 />
                                 <MyProfileSeparatorContainer.Line className='order-details-card--line' />
                                 <OrderInfoBlock
-                                    className='order-details-card--padding'
+                                    className='order-details-card--padding order-details-card__textbox'
                                     label={labels.instructions}
                                     size='xs'
                                     weight='bold'
                                     value={advert_details.description.trim() || '-'}
                                 />
-                                {should_show_order_footer && isDesktop() && (
-                                    <MyProfileSeparatorContainer.Line className='order-details-card--line' />
-                                )}
                             </React.Fragment>
+                        )}
+                        {is_completed_order && !review_details && (
+                            <React.Fragment>
+                                <MyProfileSeparatorContainer.Line className='order-details-card--rating__line' />
+                                <div className='order-details-card--rating'>
+                                    <UserRatingButton
+                                        button_text={
+                                            is_reviewable ? localize('Rate this transaction') : localize('Not rated')
+                                        }
+                                        is_disabled={!is_reviewable}
+                                        large
+                                        onClick={showRatingModal}
+                                    />
+                                </div>
+                                <Text className='order-details-card--rating__text' color='less-prominent' size='xxxs'>
+                                    {is_reviewable ? (
+                                        remaining_review_time && (
+                                            <Localize
+                                                i18n_default_text='You have until {{remaining_review_time}} GMT to rate this transaction.'
+                                                values={{ remaining_review_time }}
+                                            />
+                                        )
+                                    ) : (
+                                        <Localize i18n_default_text='You can no longer rate this transaction.' />
+                                    )}
+                                </Text>
+                            </React.Fragment>
+                        )}
+                        {review_details && (
+                            <React.Fragment>
+                                <MyProfileSeparatorContainer.Line className='order-details-card--rating__line' />
+                                <div className='order-details-card__ratings'>
+                                    <Text color='prominent' size='s' weight='bold'>
+                                        <Localize i18n_default_text='Your transaction experience' />
+                                    </Text>
+                                    <div className='order-details-card__ratings--row'>
+                                        <StarRating
+                                            empty_star_className='order-details-card__star'
+                                            empty_star_icon='IcEmptyStar'
+                                            full_star_className='order-details-card__star'
+                                            full_star_icon='IcFullStar'
+                                            initial_value={rating_average_decimal}
+                                            is_readonly
+                                            number_of_stars={5}
+                                            should_allow_hover_effect={false}
+                                            star_size={isMobile() ? 17 : 20}
+                                        />
+                                        <div className='order-details-card__ratings--row'>
+                                            {review_details.recommended !== null &&
+                                                (review_details.recommended ? (
+                                                    <React.Fragment>
+                                                        <Icon
+                                                            className='order-details-card__ratings--icon'
+                                                            custom_color='var(--status-success)'
+                                                            icon='IcThumbsUp'
+                                                            size={14}
+                                                        />
+                                                        <Text color='prominent' size='xxs'>
+                                                            <Localize i18n_default_text='Recommended' />
+                                                        </Text>
+                                                    </React.Fragment>
+                                                ) : (
+                                                    <React.Fragment>
+                                                        <Icon
+                                                            className='order-details-card__ratings--icon'
+                                                            custom_color='var(--status-danger)'
+                                                            icon='IcThumbsDown'
+                                                            size={14}
+                                                        />
+                                                        <Text color='prominent' size='xxs'>
+                                                            <Localize i18n_default_text='Not Recommended' />
+                                                        </Text>
+                                                    </React.Fragment>
+                                                ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </React.Fragment>
+                        )}
+                        {should_show_order_footer && isDesktop() && (
+                            <MyProfileSeparatorContainer.Line className='order-details-card--line' />
                         )}
                     </ThemedScrollbars>
                     {should_show_order_footer && isDesktop() && (
@@ -247,18 +424,5 @@ const OrderDetails = observer(({ onPageReturn }) => {
         </OrderDetailsWrapper>
     );
 });
-
-OrderDetails.propTypes = {
-    chat_channel_url: PropTypes.string,
-    chat_info: PropTypes.object,
-    createChatForNewOrder: PropTypes.func,
-    order_information: PropTypes.object,
-    onCancelClick: PropTypes.func,
-    popup_options: PropTypes.object,
-    setChatChannelUrl: PropTypes.func,
-    setShouldShowPopup: PropTypes.func,
-    should_show_popup: PropTypes.bool,
-    onPageReturn: PropTypes.func,
-};
 
 export default OrderDetails;

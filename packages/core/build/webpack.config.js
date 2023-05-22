@@ -5,7 +5,6 @@ const { openChromeBasedOnPlatform } = require('./helpers');
 module.exports = function (env) {
     const base = env && env.base && env.base !== true ? `/${env.base}/` : '/';
     const sub_path = env && env.open && env.open !== true ? env.open : '';
-    const is_qawolf = env && env.IS_QAWOLF && JSON.parse(env.IS_QAWOLF);
 
     return {
         context: path.resolve(__dirname, '../src'),
@@ -13,9 +12,9 @@ module.exports = function (env) {
             publicPath: base,
             open: openChromeBasedOnPlatform(process.platform),
             openPage: sub_path,
-            host: is_qawolf ? 'localhost' : 'localhost.binary.sx',
-            https: !is_qawolf,
-            port: is_qawolf ? 3000 : 443,
+            host: 'localhost.binary.sx',
+            https: true,
+            port: 443,
             historyApiFallback: true,
             stats: {
                 colors: true,
@@ -37,15 +36,17 @@ module.exports = function (env) {
             minimizer: MINIMIZERS,
             splitChunks: {
                 chunks: 'all',
-                minSize: 30000,
-                maxSize: 240000,
+                minSize: 102400,
+                minSizeReduction: 102400,
                 minChunks: 1,
                 maxAsyncRequests: 5,
                 maxInitialRequests: 3,
                 automaticNameDelimiter: '~',
+                enforceSizeThreshold: 500000,
                 cacheGroups: {
                     default: {
                         minChunks: 2,
+                        minSize: 102400,
                         priority: -20,
                         reuseExistingChunk: true,
                     },

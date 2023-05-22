@@ -180,6 +180,8 @@ const BinarySocketBase = (() => {
 
     const cashier = (action, parameters = {}) => deriv_api.send({ cashier: action, ...parameters });
 
+    const exchange_rates = from_currency => deriv_api.send({ exchange_rates: 1, base_currency: from_currency });
+
     const cashierPayments = ({ provider, transaction_type }) =>
         deriv_api.send({ cashier_payments: 1, provider, transaction_type });
 
@@ -223,6 +225,8 @@ const BinarySocketBase = (() => {
             get_financial_assessment: 1,
         });
 
+    const setFinancialAndTradingAssessment = payload => deriv_api.send({ set_financial_assessment: 1, ...payload });
+
     const profitTable = (limit, offset, date_boundaries) =>
         deriv_api.send({ profit_table: 1, description: 1, limit, offset, ...date_boundaries });
 
@@ -253,6 +257,12 @@ const BinarySocketBase = (() => {
         deriv_api.send({
             trading_platform_password_reset: 1,
             ...payload,
+        });
+
+    const tradingPlatformAvailableAccounts = platform =>
+        deriv_api.send({
+            trading_platform_available_accounts: 1,
+            platform,
         });
 
     const paymentAgentList = (country, currency) =>
@@ -331,8 +341,6 @@ const BinarySocketBase = (() => {
         });
 
     const cancelContract = contract_id => deriv_api.send({ cancel: contract_id });
-
-    const p2pAdvertiserInfo = () => deriv_api.send({ p2p_advertiser_info: 1 });
 
     const fetchLoginHistory = limit =>
         deriv_api.send({
@@ -418,6 +426,7 @@ const BinarySocketBase = (() => {
         buyAndSubscribe,
         sell,
         cashier,
+        exchange_rates,
         cashierPayments,
         subscribeCashierPayments,
         cancelCryptoTransaction,
@@ -428,17 +437,18 @@ const BinarySocketBase = (() => {
         contractUpdate,
         contractUpdateHistory,
         getFinancialAssessment,
+        setFinancialAndTradingAssessment,
         mt5NewAccount,
         newAccountVirtual,
         newAccountReal,
         newAccountRealMaltaInvest,
-        p2pAdvertiserInfo,
         p2pSubscribe,
         profitTable,
         statement,
         verifyEmail,
         tradingPlatformPasswordChange,
         tradingPlatformPasswordReset,
+        tradingPlatformAvailableAccounts,
         tradingPlatformInvestorPasswordChange,
         tradingPlatformInvestorPasswordReset,
         activeSymbols,

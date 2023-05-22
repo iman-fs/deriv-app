@@ -1,5 +1,5 @@
 {
-    "brand_name" : "Deriv",
+    "brand_name": "Deriv",
     "domain_name": "Deriv.com",
     "legal_entities": {
         "fx": "Deriv (FX) Ltd",
@@ -12,32 +12,63 @@
     },
     "platforms": {
         "trader": {
-            "name": "DTrader",
-            "icon": "IcBrandDtrader"
+            "name": "Deriv Trader",
+            "icon": "IcRebrandingDerivTrader"
         },
         "dbot": {
-            "name": "DBot",
-            "icon": "IcBrandDbot"
+            "name": "Deriv Bot",
+            "icon": "IcRebrandingDerivBot"
         },
         "mt5": {
-            "name": "DMT5",
-            "icon": "IcBrandDmt5"
+            "name": "Deriv MT5",
+            "icon": "IcRebrandingDmt5"
         },
         "dxtrade": {
             "name": "Deriv X",
-            "icon": "IcBrandDxtrade"
+            "icon": "IcRebrandingDxtrade"
+        },
+        "derivez": {
+            "name": "Deriv EZ",
+            "icon": "IcDerivez"
         },
         "smarttrader": {
             "name": "SmartTrader",
-            "icon": "IcBrandSmarttrader"
+            "icon": "IcRebrandingSmarttrader"
         },
         "bbot": {
             "name": "Binary Bot",
-            "icon": "IcBrandBinarybot"
+            "icon": "IcRebrandingBinaryBot"
         },
         "go": {
-            "name": "Deriv Go"
+            "name": "Deriv GO",
+            "icon": "IcRebrandingDerivGo"
+        }
+    },
+    "platforms_appstore": {
+        "trader": {
+            "name": "Deriv Trader",
+            "icon": "DTrader",
+            "availability": "All"
+        },
+        "dbot": {
+            "name": "Deriv Bot",
+            "icon": "DBot",
+            "availability": "Non-EU"
+        },
+        "smarttrader": {
+            "name": "SmartTrader",
+            "icon": "SmartTrader",
+            "availability": "Non-EU"
+        },
+        "bbot": {
+            "name": "Binary Bot",
+            "icon": "BinaryBot",
+            "availability": "Non-EU"
+        },
+        "go": {
+            "name": "Deriv GO",
+            "icon": "DerivGo",
+            "availability": "Non-EU"
         }
     }
-    
 }

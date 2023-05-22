@@ -1,4 +1,3 @@
-import SelfExclusion from './self-exclusion.jsx';
-import './self-exclusion.scss';
+import SelfExclusion from './self-exclusion';
 
 export default SelfExclusion;
